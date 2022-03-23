@@ -1,117 +1,160 @@
 """
-Pytorch implementation of the Autoencoder
+Pytorch implementation of the attack generation
 """
+from typing import List
 import torch
-import matplotlib.pyplot as plt
 
-from ga import generate_perturbation
-from autoencoder import Encoder, Decoder, save_checkpoint
-
-from torch import nn
 from dataloader import load_mnist
+from utils import save, load
+from autoencoder import Encoder, Decoder
+from classifier import CNN
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 print(f"Using {device} as the accelerator")
 
-encoder = Encoder()
-decoder = Decoder()
+checkpoint = torch.load('./models/checkpoint_enc_dec.pth.tar')
+print("Found Checkpoint :)")
+encoder = checkpoint["encoder"]
+decoder = checkpoint["decoder"]
 encoder.to(device)
 decoder.to(device)
-criterion = nn.MSELoss().to(device)
-encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=1e-3, weight_decay=1e-5)
-decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=1e-3, weight_decay=1e-5)
 
-train_dataloader, _ = load_mnist()
+checkpoint = torch.load('./models/checkpoint_cnn.pth.tar')
+print("Found Checkpoint :)")
+classifier = checkpoint["classifier"]
+classifier.to(device)
 
-for epoch in range(1):
-    for i, (image, _) in enumerate(train_dataloader):
-        image.to(device)
-        encoded_image = encoder(image)
+train_dataloader, _ = load_mnist(batch_size=1)
 
-        # Add perturbation to the latent space
-        delta = generate_perturbation(encoded_image.shape)
-        adv_encoded_image = encoded_image + delta
+attack_item = next(iter(train_dataloader))
+attack_data = {
+    "image": attack_item[0],
+    "label": attack_item[1]
+}
+save(path="./objects/attack.pkl", params=attack_data)
 
-        decoded_image = decoder(adv_encoded_image)
-        
-        # Reconstruction loss + Perturbation in the Adversarial Space
-        loss_recon = criterion(decoded_image, image)
-        loss_adv   = criterion(encoded_image, adv_encoded_image)
-        loss = loss_recon + loss_adv
+attack_data = load(path="./objects/attack.pkl")
+image, label = attack_data["image"], attack_data["label"]
+LABEL = label[0]
+print(int(LABEL))
 
-        decoder_optimizer.zero_grad()
-        encoder_optimizer.zero_grad()
-        loss.backward()
+image.to(device)
+encoded_image = encoder(image)
 
-        decoder_optimizer.step()
-        encoder_optimizer.step()
 
-        break
+###########################################
+############# ATTACK WITH GA ##############
+###########################################
 
-        # if i % 100 == 0 and i != 0:
-        #     print(f"Epoch: [{epoch+1}][{i}/{len(train_dataloader)}] Loss: {loss.item(): .4f}")
 
-    # save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer)
+import pygad
+import matplotlib.pyplot as plt
 
-# try:
-#     # try loading checkpoint
-#     checkpoint = torch.load('./models/checkpoint_enc_dec.pth.tar')
-#     print("Found Checkpoint :)")
-#     encoder = checkpoint["encoder"]
-#     decoder = checkpoint["decoder"]
-#     encoder.to(device)
-#     decoder.to(device)
+# genome = generate_genome(encoded_image.shape[1])
+# fitness(genome, encoded_image, decoder, classifier, label)
 
-# except:
-#     # train the model from scratch
-#     print("Couldn't find checkpoint :(")
+def fitness(genome: List, genome_idx: List):
+    """
+    Method to find fitness of a genome/ chromosome
+    """
+    # perturbation size
+    genome = torch.from_numpy(genome).float()
+    # print(genome, type(encoded_image))
+    recon_1 = decoder(encoded_image)
+    recon_2 = decoder(encoded_image + genome)
+    f1 = torch.cdist(recon_1, recon_2).squeeze(dim=1).squeeze(dim=0).detach()
 
-#     encoder = Encoder()
-#     decoder = Decoder()
-#     encoder.to(device)
-#     decoder.to(device)
-#     criterion = nn.MSELoss().to(device)
-#     encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=1e-3, weight_decay=1e-5)
-#     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=1e-3, weight_decay=1e-5)
+    # semantic distance
+    f2 = torch.norm(genome)
+
+    # confidence
+    f3 = None
+    classifier.reshape_size = (1, -1, 28, 28)
+    probas = classifier(recon_2)
+    probs, preds = torch.topk(probas, k=2, dim=1)
+
+    predicted = preds[0][0]
+    global LABEL
+
+    # Toggle Targeted and Untargeted
+    if predicted == LABEL:
+        f3 = - (probs[0][0] - probs[0][1]).detach()
+    else:
+        f3 = (probs[0][0] - probs[0][1]).detach()
     
-#     train_dataloader, _ = load_mnist()
+    fit = None
+    if predicted == LABEL:
+        fit = f3
+    else:
+        fit = f3 - (0.1 * f1) - (0.3 * f2)
 
-#     for epoch in range(10):
-#         for i, (image, _) in enumerate(train_dataloader):
-#             image.to(device)
-#             encoded_image = encoder(image)
-#             decoded_image = decoder(encoded_image)
-            
-#             loss = criterion(decoded_image, image)
-#             decoder_optimizer.zero_grad()
-#             encoder_optimizer.zero_grad()
-#             loss.backward()
+    # fit = f1 + f2 + f3
+    fit = float(fit)
 
-#             decoder_optimizer.step()
-#             encoder_optimizer.step()
+    return fit
 
-#             if i % 100 == 0 and i != 0:
-#                 print(f"Epoch: [{epoch+1}][{i}/{len(train_dataloader)}] Loss: {loss.item(): .4f}")
+fitness_function = fitness
 
-#         save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer)
+num_generations = 100
+num_parents_mating = 4
 
-# # do reconstruction
-# _, test_dataloader = load_mnist(batch_size=1)
-# decoded_image    = None
+sol_per_pop = 5
+num_genes = encoded_image.shape[1]
 
-# for i, (image, _) in enumerate(test_dataloader):
-#     image.to(device)
-#     encoded_image = encoder(image)
-#     decoded_image = decoder(encoded_image)
-#     break
+init_range_low = 0
+init_range_high = 0.04
 
-# image = image.reshape(28, 28).detach().numpy()
-# reconstructed_image = decoded_image.reshape(28, 28).detach().numpy()
+parent_selection_type = "sss"
+keep_parents = 1
 
-# plt.gray()
-# fig, axis = plt.subplots(2)
-# axis[0].imshow(image)
-# axis[1].imshow(reconstructed_image)
-# plt.show()
-# plt.savefig(f"./img/enc_dec.png", dpi=600)
+crossover_type = "single_point"
+
+mutation_type = "random"
+mutation_percent_genes = 10
+
+ga_instance = pygad.GA(num_generations=num_generations,
+                       num_parents_mating=num_parents_mating,
+                       fitness_func=fitness_function,
+                       sol_per_pop=sol_per_pop,
+                       num_genes=num_genes,
+                       init_range_low=init_range_low,
+                       init_range_high=init_range_high,
+                       parent_selection_type=parent_selection_type,
+                       keep_parents=keep_parents,
+                       crossover_type=crossover_type,
+                       mutation_type=mutation_type,
+                       mutation_percent_genes=mutation_percent_genes)
+
+ga_instance.run()
+
+solution, solution_fitness, solution_idx = ga_instance.best_solution()
+# print("Parameters of the best solution : {solution}".format(solution=solution))
+print("Fitness value of the best solution = {solution_fitness}".format(solution_fitness=solution_fitness))
+
+perturbation = torch.Tensor(solution).reshape(1, -1)
+attack_img   = decoder(encoded_image + perturbation)
+recons_img   = decoder(encoded_image)
+
+# prediction
+probas = classifier(attack_img)
+probs, preds = torch.topk(probas, k=2, dim=1)
+
+predicted = preds[0][0]
+print(f"Predicted Label: {predicted}")
+
+image      = image.reshape(28, 28)
+recons_img = recons_img.reshape(28, 28).detach().numpy()
+attack_img = attack_img.reshape(28, 28).detach().numpy()
+
+fig = plt.figure()
+columns = 3
+rows = 1
+fig.add_subplot(rows, columns, 1)
+plt.imshow(image)
+fig.add_subplot(rows, columns, 2)
+plt.imshow(recons_img)
+fig.add_subplot(rows, columns, 3)
+plt.imshow(attack_img)
+plt.savefig(f"./img/attack_{LABEL}.png", dpi=600)
+plt.show()

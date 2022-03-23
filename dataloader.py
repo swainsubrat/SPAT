@@ -27,6 +27,6 @@ def load_mnist(batch_size: int=64, root: str='./data/'):
 if __name__ == "__main__":
     train_dataloader, test_dataloader = load_mnist(root='./data/')
     for x, y in train_dataloader:
-        print(x)
-        print(y)
+        print(x[0])
+        print(y[0])
         break
