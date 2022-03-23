@@ -13,7 +13,7 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 
 print(f"Using {device} as the accelerator")
 
-checkpoint = torch.load('./models/checkpoint_enc_dec.pth.tar')
+checkpoint = torch.load('./models/ciphar_autoencoder.pth.tar')
 print("Found Checkpoint :)")
 encoder = checkpoint["encoder"]
 decoder = checkpoint["decoder"]

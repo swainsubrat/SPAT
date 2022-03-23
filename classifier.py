@@ -9,7 +9,7 @@ from torch import nn
 from utils import accuracy
 from dataloader import load_mnist
 	
-def save_checkpoint(epoch, classifier, optimizer, path='./models/checkpoint_cnn.pth.tar'):
+def save_checkpoint(epoch, classifier, optimizer, path='./models/ciphar_cnn.pth.tar'):
     state = {'epoch': epoch,
              'classifier': classifier,
              'optimizer': optimizer}
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     train_dataloader, test_dataloader = load_mnist(batch_size=batch_size, root='./data/')
     try:
         # try loading checkpoint
-        checkpoint = torch.load('./models/checkpoint_cnn.pth.tar')
+        checkpoint = torch.load('./models/ciphar_cnn.pth.tar')
         print("Found Checkpoint :)")
         classifier = checkpoint["classifier"]
         classifier.to(device)
