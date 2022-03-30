@@ -171,10 +171,16 @@ if __name__ == "__main__":
     reconstructed_image = denormalize(reconstructed_image,
                                       sigma=(0.2023, 0.1994, 0.2010),
                                       mu=(0.4914, 0.4822, 0.4465))
-    fig, axis = plt.subplots(1)
-    axis.imshow(np.transpose(image, (1, 2, 0)))
-    plt.savefig(f"./img/{base_name}.png", dpi=1000)
+    
+    def imshow(img):
+        img = img / 2 + 0.5     # unnormalize
+        npimg = img.numpy()
+        plt.imshow(np.transpose(npimg, (1, 2, 0)))
+        plt.show()
 
-    fig, axis = plt.subplots(1)
-    axis.imshow(np.transpose(reconstructed_image, (1, 2, 0)))
+    fig, axis = plt.subplots(1,2)
+    print(image.shape)
+    axis[0].imshow(np.transpose(image, (1, 2, 0)))
+    axis[1].imshow(np.transpose(reconstructed_image, (1, 2, 0)))
     plt.savefig(f"./img/{base_name}_recon.png", dpi=1000)
+    plt.show()
