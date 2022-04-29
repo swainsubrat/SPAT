@@ -10,7 +10,8 @@ import torch.nn.functional as F
 
 from dataloader import load_mnist, load_cifar
 from utils import save, load
-from models import Encoder, Decoder
+# from models import Encoder, Decoder
+from autoencoder import EncoderMember, DecoderMember
 from classifier import CNN
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
@@ -36,38 +37,38 @@ class Net(nn.Module):
 
 print(f"Using {device} as the accelerator")
 
-checkpoint = torch.load('./models/cifar_autoencoder.pth.tar')
-print("Found Checkpoint of Autoencoder:)")
+checkpoint = torch.load('./models/membership_enc_dec.pth.tar')
+print("Found Checkpoint of Autoencoder :)")
 encoder = checkpoint["encoder"]
 decoder = checkpoint["decoder"]
-encoder.to(device)
-decoder.to(device)
+encoder = encoder.to(device)
+decoder = decoder.to(device)
 
-checkpoint = torch.load('./models/cifar_cnn.pth')
-print("Found Checkpoint of Classifier:)")
+checkpoint = torch.load('./models/mnist_cnn.pth.tar')
+print("Found Checkpoint of Classifier :)")
 
-PATH = './models/cifar_cnn.pth'
-classifier = Net()
-classifier.load_state_dict(torch.load(PATH))
+PATH = './models/mnist_cnn.pth.tar'
+# classifier = CNN(reshape_size=(1, -1, 28, 28))
+# classifier.load_state_dict(torch.load(PATH))
 
-# classifier = checkpoint["classifier"]
-classifier.to(device)
+classifier = checkpoint["classifier"]
+classifier.reshape_size = (1, -1, 28, 28)
+classifier = classifier.to(device)
 
-train_dataloader, _, _ = load_cifar(batch_size=1)
+train_dataloader, _ = load_mnist(batch_size=1)
 
 attack_item = next(iter(train_dataloader))
 attack_data = {
     "image": attack_item[0],
     "label": attack_item[1]
 }
-save(path="./objects/cifar_attack.pkl", params=attack_data)
+save(path="./objects/mnist_attack.pkl", params=attack_data)
 
-attack_data = load(path="./objects/cifar_attack.pkl")
+attack_data = load(path="./objects/mnist_attack.pkl")
 image, label = attack_data["image"], attack_data["label"]
 LABEL = label[0]
-print(int(LABEL))
 
-image.to(device)
+image = image.to(device)
 encoded_image = encoder(image)
 
 
@@ -87,7 +88,7 @@ def fitness(genome: List, genome_idx: List):
     Method to find fitness of a genome/ chromosome
     """
     # perturbation size
-    genome = torch.from_numpy(genome).float()
+    genome = torch.from_numpy(genome).float().to(device)
     # print(genome, type(encoded_image))
     recon_1 = decoder(encoded_image)
     recon_2 = decoder(encoded_image + genome)
@@ -163,7 +164,7 @@ solution, solution_fitness, solution_idx = ga_instance.best_solution()
 # print("Parameters of the best solution : {solution}".format(solution=solution))
 print("Fitness value of the best solution = {solution_fitness}".format(solution_fitness=solution_fitness))
 
-perturbation = torch.Tensor(solution).reshape(1, -1)
+perturbation = torch.Tensor(solution).reshape(1, -1).to(device)
 attack_img   = decoder(encoded_image + perturbation)
 recons_img   = decoder(encoded_image)
 
@@ -175,9 +176,9 @@ predicted = preds[0][0]
 print(f"Predicted Label: {predicted}")
 print(f"Actual Label: {int(LABEL)}")
 
-image      = image.reshape(3, 32, 32)
-recons_img = recons_img.reshape(3, 32, 32).detach().numpy()
-attack_img = attack_img.reshape(3, 32, 32).detach().numpy()
+image      = image.reshape(1, 28, 28).cpu()
+recons_img = recons_img.reshape(1, 28, 28).cpu().detach().numpy()
+attack_img = attack_img.reshape(1, 28, 28).cpu().detach().numpy()
 
 fig = plt.figure()
 columns = 3
@@ -188,5 +189,5 @@ fig.add_subplot(rows, columns, 2)
 plt.imshow(np.transpose(recons_img, (1, 2, 0)))
 fig.add_subplot(rows, columns, 3)
 plt.imshow(np.transpose(attack_img, (1, 2, 0)))
-plt.savefig(f"./img/cifar_attack_{int(LABEL)}_{predicted}.png", dpi=600)
+plt.savefig(f"./img/mnist_attack_{int(LABEL)}_{predicted}.png", dpi=600)
 plt.show()

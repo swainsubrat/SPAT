@@ -63,7 +63,6 @@ class Net(nn.Module):
         x = self.fc3(x)
         return x
 
-
 net = Net()
 
 import torch.optim as optim

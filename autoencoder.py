@@ -8,8 +8,12 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 
 from torch import nn
 from dataloader import load_mnist
-	
-def save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, path='./models/checkpoint_enc_dec.pth.tar'):
+
+##### Constants #####
+model_path = './models/checkpoint_enc_dec.pth.tar'
+#####################	
+
+def save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, path=model_path):
     state = {'epoch': epoch,
              'encoder': encoder,
              'decoder': decoder,
@@ -60,6 +64,53 @@ class Decoder(nn.Module):
         out = self.model(encoded_image)
 
         return out
+
+
+class EncoderMember(nn.Module):
+    """
+    Encoder to encode the image into a hidden state
+    """
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = nn.Sequential(
+            nn.Linear(784, 512),
+            nn.Mish(),
+            nn.Linear(512, 264),
+            nn.Mish(),
+            nn.Linear(264, 128),
+            nn.Mish(),
+            nn.Linear(128, num_classes)
+            # nn.Softmax()
+        )
+    
+    def forward(self, images):
+        out = self.model(images)
+        
+        return out
+
+
+class DecoderMember(nn.Module):
+    """
+    Decoder to reconstruct image from the hidden state
+    """
+    def __init__(self, num_classes):
+        super().__init__()
+        self.model = nn.Sequential(
+            nn.Linear(num_classes, 128),
+            nn.Mish(),
+            nn.Linear(128, 264),
+            nn.Mish(),
+            nn.Linear(264, 512),
+            nn.Mish(),
+            nn.Linear(512, 784),
+            nn.Sigmoid() # for making value between 0 to 1
+        )
+    
+    def forward(self, encoded_image):
+        out = self.model(encoded_image)
+
+        return out
+
 
 if __name__ == "__main__":
     print(f"Using {device} as the accelerator")

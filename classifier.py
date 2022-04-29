@@ -9,7 +9,7 @@ from torch import nn
 from utils import accuracy
 from dataloader import load_mnist
 	
-def save_checkpoint(epoch, classifier, optimizer, path='./models/ciphar_cnn.pth.tar'):
+def save_checkpoint(epoch, classifier, optimizer, path='./models/mnist_cnn.pth.tar'):
     state = {'epoch': epoch,
              'classifier': classifier,
              'optimizer': optimizer}
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     train_dataloader, test_dataloader = load_mnist(batch_size=batch_size, root='./data/')
     try:
         # try loading checkpoint
-        checkpoint = torch.load('./models/ciphar_cnn.pth.tar')
+        checkpoint = torch.load('./models/mnist_cnn.pth.tar')
         print("Found Checkpoint :)")
         classifier = checkpoint["classifier"]
         classifier.to(device)
@@ -68,13 +68,14 @@ if __name__ == "__main__":
         print("Couldn't find checkpoint :(")
 
         classifier = CNN(reshape_size=(batch_size, -1, 28, 28))
-        classifier.to(device)
+        classifier = classifier.to(device)
         criterion = nn.CrossEntropyLoss().to(device)
         optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3, weight_decay=1e-5)
 
         for epoch in range(10):
             for i, (image, label) in enumerate(train_dataloader):
-                image.to(device)
+                image = image.to(device)
+                label = label.to(device)
                 out = classifier(image)
                 
                 loss = criterion(out, label)
@@ -90,7 +91,7 @@ if __name__ == "__main__":
     
     y_hat, y = [], []
     for i, (image, label) in enumerate(test_dataloader):
-        image.to(device)
+        image = image.to(device)
         out = classifier(image)
         prob, idxs = torch.max(out, dim=1)
 

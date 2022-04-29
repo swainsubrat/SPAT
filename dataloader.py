@@ -3,6 +3,7 @@ import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 
 from torch.utils.data import DataLoader, random_split
+from datasets import CelebaDataset
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -54,30 +55,39 @@ def load_celeba(batch_size: int=64, root: str="./data/"):
     """
     Load CelebA dataset
     """
-    transform_train = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ])
+    # transform_train = transforms.Compose([
+    #                                     #   transforms.Grayscale(),
+    #                                       transforms.ToTensor(),
+    #                                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),])
+    transform_train = transforms.Compose([transforms.CenterCrop((178, 178)),
+                                       transforms.Resize((128, 128)),
+                                       #transforms.Grayscale(),                                       
+                                       #transforms.Lambda(lambda x: x/255.),
+                                       transforms.ToTensor()])
 
     transform_test = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ])
+                                        #   transforms.Grayscale(),
+                                          transforms.ToTensor(),
+                                          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),])
 
-    train_data = datasets.CelebA(root=root, split='train', download=True, target_type="identity", transform=transform_train)
-    valid_data = datasets.CelebA(root=root, split='valid', download=True, target_type="identity", transform=transform_train)
-    test_data = datasets.CelebA(root=root, split='test', download=True, target_type="identity", transform=transform_test)
+    train_data = CelebaDataset(txt_path=root+'celeba/celeba_gender_attr_train.txt',
+                               img_dir=root+'celeba/img_align_celeba/',
+                               transform=transform_train)
+    test_data = CelebaDataset(txt_path=root+'celeba/celeba_gender_attr_test.txt',
+                              img_dir=root+'celeba/img_align_celeba/',
+                              transform=transform_train)
+    
 
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True)
-    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, drop_last=True, shuffle=True)
-    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, shuffle=True)
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=4)
+    # valid_dataloader = DataLoader(valid_data, batch_size=batch_size, shuffle=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, shuffle=True, num_workers=4)
 
-    return train_dataloader, valid_dataloader, test_dataloader
+    return train_dataloader, test_dataloader
 
 if __name__ == "__main__":
-    train_dataloader, valid_dataloader, test_dataloader = load_celeba(root='./data/')
-    print(train_dataloader.shape)
+    train_dataloader, test_dataloader = load_celeba(root='./data/')
+    # print(train_dataloader.shape)
     for x, y in train_dataloader:
-        print(x[0])
-        print(y[0])
+        print(x.shape)
+        print(y)
         break
