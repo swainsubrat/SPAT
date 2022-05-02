@@ -128,3 +128,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 data/
+models/mnist_enc_dec.pth.tar
+models/membership_enc_dec.pth.tar

@@ -15,7 +15,6 @@ base_name = "cifar_autoencoder"
 
 #####################
 
-
 from torch import nn
 from torchvision.utils import make_grid
 from dataloader import load_cifar

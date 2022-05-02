@@ -8,13 +8,14 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
-from dataloader import load_mnist, load_cifar
+from dataloader import load_mnist, load_cifar, labelwise_load_mnist
 from utils import save, load
-# from models import Encoder, Decoder
+from autoencoder import Encoder, Decoder
 from autoencoder import EncoderMember, DecoderMember
 from classifier import CNN
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+TARGET_CLASS = 7
 
 class Net(nn.Module):
     def __init__(self):
@@ -37,7 +38,7 @@ class Net(nn.Module):
 
 print(f"Using {device} as the accelerator")
 
-checkpoint = torch.load('./models/membership_enc_dec.pth.tar')
+checkpoint = torch.load('./models/mnist_enc_dec.pth.tar')
 print("Found Checkpoint of Autoencoder :)")
 encoder = checkpoint["encoder"]
 decoder = checkpoint["decoder"]
@@ -55,9 +56,13 @@ classifier = checkpoint["classifier"]
 classifier.reshape_size = (1, -1, 28, 28)
 classifier = classifier.to(device)
 
-train_dataloader, _ = load_mnist(batch_size=1)
+_, test_dataloader = labelwise_load_mnist(batch_size=1)
 
-attack_item = next(iter(train_dataloader))
+while True:
+    attack_item = next(iter(test_dataloader))
+    if attack_item[1].detach().numpy()[0] != TARGET_CLASS:
+        break
+
 attack_data = {
     "image": attack_item[0],
     "label": attack_item[1]
@@ -93,6 +98,7 @@ def fitness(genome: List, genome_idx: List):
     recon_1 = decoder(encoded_image)
     recon_2 = decoder(encoded_image + genome)
     f1 = torch.cdist(recon_1.reshape(1, -1), recon_2.reshape(1, -1)).squeeze(dim=1).squeeze(dim=0).detach()
+    # f1 = torch.cdist(image.reshape(1, -1), recon_2.reshape(1, -1)).squeeze(dim=1).squeeze(dim=0).detach()
     # print(f"f1: {f1}")
 
     # semantic distance
@@ -113,12 +119,18 @@ def fitness(genome: List, genome_idx: List):
         f3 = - (probs[0][0] - probs[0][1]).detach()
     else:
         f3 = (probs[0][0] - probs[0][1]).detach()
+
+    # if predicted == TARGET_CLASS:
+    #     f3 = (probs[0][0] - probs[0][1]).detach()
+    # else:
+    #     f3 = -(probs[0][0] - probas[0][TARGET_CLASS]).detach()
+
     # print(f"f3: {f3}")
     fit = None
     if predicted == LABEL:
         fit = f3
     else:
-        fit = f3 - (0.1 * f1) - (0.3 * f2)
+        fit = (0.8 * f3) - (0.1 * f1) - (0.1 * f2)
 
     # fit = f1 + f2 + f3
     fit = float(fit)
@@ -141,8 +153,10 @@ parent_selection_type = "sss"
 keep_parents = 1
 
 crossover_type = "single_point"
+crossover_probability = 0.2
 
 mutation_type = "random"
+mutation_probability = 0.1
 mutation_percent_genes = 10
 
 ga_instance = pygad.GA(num_generations=num_generations,
@@ -155,8 +169,11 @@ ga_instance = pygad.GA(num_generations=num_generations,
                        parent_selection_type=parent_selection_type,
                        keep_parents=keep_parents,
                        crossover_type=crossover_type,
+                       crossover_probability=crossover_probability,
                        mutation_type=mutation_type,
-                       mutation_percent_genes=mutation_percent_genes)
+                       mutation_probability=mutation_probability,
+                       mutation_percent_genes=mutation_percent_genes,
+                       stop_criteria='saturate_7')
 
 ga_instance.run()
 

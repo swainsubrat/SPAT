@@ -1,5 +1,6 @@
 import torch
 import matplotlib.pyplot as plt
+import torch.nn.functional as F
 
 from torch import nn
 from dataloader import load_mnist
@@ -81,6 +82,7 @@ if __name__ == "__main__":
         label = label.to(device)
 
         z = encoder(image)
+        print(f"Actual z: {z}")
         recon_image = decoder(z)
 
         break
@@ -88,8 +90,8 @@ if __name__ == "__main__":
     print(f"Label is: {label}")
     # demo_z = torch.rand(10).to(device)
     # demo_z[label] += 0.9
-    demo_z = torch.tensor([0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]).to(device)
-    demo_z[label] += 0.8
+    demo_z = torch.tensor([-5.4, -3.2, -4.1, -7.1, 0.1, 0, -4.53, 2, -2.3, 0.1]).to(device)
+    demo_z[label] += 20
     # demo_z = nn.Softmax(demo_z)
     print(label, demo_z)
     demo_recon = decoder(demo_z)
