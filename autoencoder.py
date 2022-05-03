@@ -142,7 +142,7 @@ if __name__ == "__main__":
                 image = image.to(device)
                 encoded_image = encoder(image)
                 decoded_image = decoder(encoded_image)
-                
+                # import pdb; pdb.set_trace()
                 loss = criterion(decoded_image, image)
                 decoder_optimizer.zero_grad()
                 encoder_optimizer.zero_grad()

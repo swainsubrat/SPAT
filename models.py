@@ -1,5 +1,5 @@
 """
-Pytorch implementation of the Autoencoder
+Pytorch implementation of the Autoencoder and other models
 """
 import torch
 import numpy as np
@@ -18,6 +18,116 @@ base_name = "cifar_autoencoder"
 from torch import nn
 from torchvision.utils import make_grid
 from dataloader import load_cifar
+
+def double_conv(in_channels, out_channels):
+  return nn.Sequential(
+    nn.Conv2d(in_channels, out_channels, kernel_size = 3, padding=1),
+    nn.BatchNorm2d(out_channels),
+    nn.ReLU(inplace=True),
+    # nn.Dropout(p=0.5), ## regualarisation..using high dropout rate of 0.9...lets see for few moments...
+    nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+    nn.BatchNorm2d(out_channels),
+    nn.ReLU(inplace=True),
+    # nn.Dropout(p=0.9) ## dual dropout 
+  )
+
+def down(in_channels, out_channels):
+  ## downsampling with maxpool then double conv
+  return nn.Sequential(
+    nn.MaxPool2d(2),
+    double_conv(in_channels, out_channels)
+  )
+
+class up(nn.Module):
+  ## upsampling then double conv 
+  def __init__(self, in_channels, out_channels):
+    super(up, self).__init__()
+    self.up = nn.ConvTranspose2d(in_channels, in_channels, kernel_size=2, stride = 2)
+    self.conv = double_conv(in_channels, out_channels)
+  def forward(self,x1,x2): 
+    x1 = self.up(x1)
+    # input is CHW 
+    diffY = x2.size()[2] - x1.size()[2]
+    diffX = x2.size()[3] - x1.size()[3]
+
+    x = F.pad(x1, [diffX // 2, diffX - diffX // 2,
+                    diffY // 2, diffY - diffY // 2]) 
+    return self.conv(x)
+
+def inconv(in_channels, out_channels):
+  return nn.Conv2d(in_channels, out_channels, kernel_size=1)
+
+def outconv(in_channels, out_channels):
+  return nn.Conv2d(in_channels, out_channels, kernel_size=1)
+
+
+class Autoencoder(nn.Module):
+    ...
+
+
+class VAE(nn.Module):
+  def __init__(self, n_channels=3, n_class=10, multi_channels=16, denoise=False):
+    super().__init__()
+    self.n_channels = n_channels
+    self.n_class = n_class
+    self.multi_channels = multi_channels 
+    self.denoise = denoise
+    
+    
+    if self.denoise: 
+      layers = [] 
+      layers.append(inconv(self.multi_channels*16*2, self.n_channels)) # *2 cause the input is gonna be now from the encoder of the reconstruction 
+      layers.extend(
+        [double_conv(self.n_channels, self.multi_channels),
+        down(self.multi_channels,self.multi_channels*2),
+        down(self.multi_channels*2,self.multi_channels*4),
+        down(self.multi_channels*4,self.multi_channels*8), 
+        down(self.multi_channels*8, self.multi_channels*16)]
+      )
+      self.encoder = nn.Sequential(*layers)
+    
+    else: 
+      ## encoder defining   
+      self.encoder = nn.Sequential(
+        double_conv(self.n_channels, self.multi_channels),
+        down(self.multi_channels,self.multi_channels*2),
+        down(self.multi_channels*2,self.multi_channels*4),
+        down(self.multi_channels*4,self.multi_channels*8), 
+        down(self.multi_channels*8, self.multi_channels*16)
+      )
+        
+    ## decoder defining
+    self.decoder = nn.Sequential(
+      up(self.multi_channels*16,self.multi_channels*8),
+      up(self.multi_channels*8,self.multi_channels*4),
+      up(self.multi_channels*4,self.multi_channels*2),
+      up(self.multi_channels*2,self.multi_channels),
+      outconv(self.multi_channels,self.n_class)
+    )
+  
+  def forward(self, x):  
+    if self.denoise:
+      x = self.encoder[0](x) 
+      x1 = self.encoder[1](x)
+      x2 = self.encoder[2](x1)
+      x3 = self.encoder[3](x2)
+      x4 = self.encoder[4](x3)
+      x5 = self.encoder[5](x4)
+    else: 
+      x1 = self.encoder[0](x)
+      x2 = self.encoder[1](x1)
+      x3 = self.encoder[2](x2)
+      x4 = self.encoder[3](x3)
+      x5 = self.encoder[4](x4) 
+    
+    # pdb.set_trace()
+    x = self.decoder[0](x5,x4)
+    x = self.decoder[1](x,x3)
+    x = self.decoder[2](x,x2)
+    x = self.decoder[3](x,x1)
+    logits = self.decoder[4](x)  
+    return logits
+
 
 
 class CifarEncoder(nn.Module):
@@ -250,6 +360,10 @@ class CelebAAutoEncoder(nn.Module):
         z = self.encode(x)
         decoded = self.decode(z)
         return z, decoded
+
+
+class MNISTVAE(nn.Module):
+    ...
 
 
 if __name__ == "__main__":

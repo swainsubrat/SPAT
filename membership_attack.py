@@ -92,6 +92,7 @@ if __name__ == "__main__":
     # demo_z[label] += 0.9
     demo_z = torch.tensor([-5.4, -3.2, -4.1, -7.1, 0.1, 0, -4.53, 2, -2.3, 0.1]).to(device)
     demo_z[label] += 20
+    demo_z[label+1] += 20
     # demo_z = nn.Softmax(demo_z)
     print(label, demo_z)
     demo_recon = decoder(demo_z)
