@@ -1,6 +1,8 @@
 import torch
+import torchvision
 import numpy as np
 import pickle
+import matplotlib.pyplot as plt
 
 from typing import List, Dict
 
@@ -50,6 +52,19 @@ def save_checkpoint_autoencoder_new(epoch, model, optimizer, path):
 
     filename = path
     torch.save(state, filename)
+
+def visualize_cifar_reconstructions(input_imgs, reconst_imgs):
+    # Plotting
+    imgs = torch.stack([input_imgs, reconst_imgs], dim=1).flatten(0, 1)
+    grid = torchvision.utils.make_grid(imgs, nrow=4, normalize=True, range=(-1, 1))
+    grid = grid.permute(1, 2, 0)
+    plt.figure(figsize=(7, 4.5))
+    plt.title("Reconstructed image from the latent codes")
+    plt.imshow(grid)
+    plt.axis("off")
+    # plt.show()
+    plt.savefig(f"../img/recons/cifar10_3.png", dpi=600)
+    plt.show()
 
 if __name__ == "__main__":
     a = [1, 2, 3]

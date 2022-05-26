@@ -64,9 +64,9 @@ def load_cifar(batch_size: int=64, root: str="./data/"):
     train_data, valid_data = random_split(train, [45000, 5000])
     test_data  = datasets.CIFAR10(root=root, train=False, download=True, transform=transform_test)
 
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True)
-    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, drop_last=True, shuffle=True)
-    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, shuffle=True)
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True, num_workers=4)
+    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, drop_last=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, shuffle=True, num_workers=4)
 
     return train_dataloader, valid_dataloader, test_dataloader
 
