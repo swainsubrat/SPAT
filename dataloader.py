@@ -16,13 +16,15 @@ def load_mnist(batch_size: int=64, root: str='./data/'):
                        transforms.ToTensor(),
                        transforms.Lambda(lambda x: torch.flatten(x))]
                        )
-    train_data = datasets.MNIST(root=root, train=True, download=True, transform=t)
+    train = datasets.MNIST(root=root, train=True, download=True, transform=t)
+    train_data, valid_data = random_split(train, [55000, 5000])
     test_data  = datasets.MNIST(root=root, train=False, download=True, transform=t)
 
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True)
-    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, shuffle=True)
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True, num_workers=4)
+    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, drop_last=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, shuffle=True, num_workers=4)
 
-    return train_dataloader, test_dataloader
+    return train_dataloader, valid_dataloader, test_dataloader
 
 def labelwise_load_mnist(batch_size: int=64, root: str='./data/', label=7):
     """
@@ -103,10 +105,28 @@ def load_celeba(batch_size: int=64, root: str="./data/"):
 
     return train_dataloader, test_dataloader
 
+def load_fashion_mnist(batch_size: int=64, root: str="/home/sweta/scratch/datasets/FashionMNIST/"):
+    """
+    Load Fashion-MNIST data
+    """
+    t = transforms.Compose([
+                       transforms.ToTensor(),
+                       transforms.Lambda(lambda x: torch.flatten(x))]
+                       )
+    train = datasets.FashionMNIST(root=root, train=True, download=True, transform=t)
+    train_data, valid_data = random_split(train, [55000, 5000])
+    test_data  = datasets.FashionMNIST(root=root, train=False, download=True, transform=t)
+
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True, num_workers=4)
+    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, drop_last=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, shuffle=True, num_workers=4)
+
+    return train_dataloader, valid_dataloader, test_dataloader
+
+
 if __name__ == "__main__":
-    train_dataloader, test_dataloader = load_celeba(root='./data/')
-    # print(train_dataloader.shape)
+    train_dataloader, valid_dataloader, test_dataloader = load_fashion_mnist(root="/home/sweta/scratch/datasets/FashionMNIST/")
+    print(len(train_dataloader))
     for x, y in train_dataloader:
         print(x.shape)
-        print(y)
         break

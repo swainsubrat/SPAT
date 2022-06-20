@@ -1,0 +1,16 @@
+model: MNIST
+
+paths:
+  root: /home/sweta/scratch/datasets/MNIST/
+  autoencoder-path: ./lightning_logs/version_0/checkpoints/epoch=9-step=9370.ckpt
+  classifier-path: ./lightning_logs/version_6/checkpoints/epoch=9-step=9370.ckpt
+
+specs:
+  bounds:
+    - -5
+    - 15
+  plot: False
+  batch_size: 100
+  reshape:
+    - 28
+    - 28

@@ -11,7 +11,7 @@ import torch.nn.functional as F
 
 from torch import nn
 from torchmetrics.functional import accuracy
-from dataloader import load_mnist, load_cifar
+from dataloader import load_mnist, load_cifar, load_fashion_mnist
 from torch.optim.lr_scheduler import OneCycleLR
 
 
@@ -19,8 +19,11 @@ class MNISTClassifier(pl.LightningModule):
     """
     This is an implementation of the classifier using ANN
     """
-    def __init__(self) -> None:
+    def __init__(self, lr: float=1e-3, batch_size: int=64) -> None:
         super().__init__()
+
+        self.save_hyperparameters()
+        self.batch_size = batch_size
         self.criterion = nn.CrossEntropyLoss()
         self.model = nn.Sequential(
             nn.Linear(784, 512),
@@ -31,10 +34,9 @@ class MNISTClassifier(pl.LightningModule):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # print("######################################")
-        # print(x.shape, x.requires_grad)
+
         return self.model(x)
-    
+
     def training_step(self, batch, batch_idx):
         x, y = batch
         x = x.view(x.size(0), -1)
@@ -43,20 +45,18 @@ class MNISTClassifier(pl.LightningModule):
         self.log("train_loss", loss)
 
         return loss
-    
+
     def accuracy(self, logits, y):
-        # currently IPU poptorch doesn't implicit convert bools to tensor
-        # hence we use an explicit calculation for accuracy here. Once fixed in poptorch
-        # we can use the accuracy metric.
         acc = torch.sum(torch.eq(torch.argmax(logits, -1), y).to(torch.float32)) / len(y)
+
         return acc
 
     def predict_step(self, batch, batch_idx):
         # enable Monte Carlo Dropout
         x, y = batch
-        
+
         return self(x)
-    
+
     def test_step(self, batch, batch_idx):
         x, y = batch
         y_hat = self(x)
@@ -64,8 +64,32 @@ class MNISTClassifier(pl.LightningModule):
         self.log("test_acc", acc)
         return acc
 
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self(x)
+        acc = self.accuracy(y_hat, y)
+        self.log("valid_acc", acc)
+        return acc
+
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
+        # optimizer = torch.optim.SGD(
+        #     self.parameters(),
+        #     lr=self.hparams.lr,
+        #     momentum=0.9,
+        #     weight_decay=5e-4,
+        # )
+        # steps_per_epoch = 45000 // self.batch_size
+        # scheduler_dict = {
+        #     "scheduler": OneCycleLR(
+        #         optimizer,
+        #         0.1,
+        #         epochs=self.trainer.max_epochs,
+        #         steps_per_epoch=steps_per_epoch,
+        #     ),
+        #     "interval": "step",
+        # }
+        # return {"optimizer": optimizer, "lr_scheduler": scheduler_dict}
 
 
 class CIFAR10Classifier(pl.LightningModule):
@@ -166,32 +190,48 @@ if __name__ == "__main__":
     """
     CIFAR classifier testing
     """
-    train_dataloader, valid_dataloader, test_dataloader = load_cifar(
-        root="/home/sweta/scratch/datasets/CIFAR/"
-    )
+    # train_dataloader, valid_dataloader, test_dataloader = load_cifar(
+    #     root="/home/sweta/scratch/datasets/CIFAR/"
+    # )
 
-    model = CIFAR10Classifier()
-    trainer = pl.Trainer(max_epochs=50, gpus=1, default_root_dir="..")
-    # trainer.fit(model, train_dataloader, valid_dataloader)  
+    # model = CIFAR10Classifier()
+    # trainer = pl.Trainer(max_epochs=50, gpus=1, default_root_dir="..")
+    # # trainer.fit(model, train_dataloader, valid_dataloader)  
 
-    model = CIFAR10Classifier.load_from_checkpoint("../lightning_logs/version_10/checkpoints/epoch=49-step=35150.ckpt")
-    model.eval()
-    preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
-    p = trainer.test(model, dataloaders=test_dataloader)
-    print(p)
+    # model = CIFAR10Classifier.load_from_checkpoint("../lightning_logs/version_10/checkpoints/epoch=49-step=35150.ckpt")
+    # model.eval()
+    # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
+    # p = trainer.test(model, dataloaders=test_dataloader)
+    # print(p)
 
     """
     MNIST classifier testing
     """
-    # train_dataloader, test_dataloader = load_mnist(root="../data/")
+    train_dataloader, valid_dataloader, test_dataloader = load_mnist(root="/home/sweta/scratch/datasets/MNIST/")
+
+    model = MNISTClassifier()
+    trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..")
+    # trainer.fit(model, train_dataloader)   
+
+    model = MNISTClassifier.load_from_checkpoint("../lightning_logs/version_6/checkpoints/epoch=9-step=9370.ckpt")
+    model.eval()
+    # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
+    # print(len(preds), preds[0].shape)
+    p = trainer.test(model, dataloaders=test_dataloader, verbose=False)
+    print(p)
+
+    """
+    FashionMNIST classifier testing
+    """
+    # train_dataloader, valid_dataloader, test_dataloader = load_fashion_mnist(root="/home/sweta/scratch/datasets/FashionMNIST/")
 
     # model = MNISTClassifier()
-    # trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..")
-    # # trainer.fit(model, train_dataloader)   
+    # trainer = pl.Trainer(max_epochs=50, gpus=1, default_root_dir="..")
+    # # trainer.fit(model, train_dataloader, valid_dataloader)   
 
-    # model = MNISTClassifier.load_from_checkpoint("../lightning_logs/version_6/checkpoints/epoch=9-step=9370.ckpt")
+    # model = MNISTClassifier.load_from_checkpoint("../lightning_logs/version_13/checkpoints/epoch=49-step=42950.ckpt")
     # model.eval()
-    # # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
-    # # print(len(preds), preds[0].shape)
+    # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
+    # print(len(preds), preds[0].shape)
     # p = trainer.test(model, dataloaders=test_dataloader, verbose=False)
     # print(p)
