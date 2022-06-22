@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-from torch import nn
+from torch import nn, Tensor
 from typing import Tuple, Callable
 from dataloader import load_mnist
 from models.classifier import MNISTClassifier, CIFAR10Classifier
@@ -60,18 +60,12 @@ def make_hybrid_model(autoencoder_class: BaseAutoEncoder=ANNAutoencoder,
     return fmodel, orig_fmodel, autoencoder_model, classifier_model
 
 def get_embeddings(autoencoder_model: BaseAutoEncoder,
-                root: str=None,
-                load_function: Callable=load_mnist,
-                batch_size: int=100):
+                images: Tensor=None,
+                labels: Tensor=None):
     """
     passing the input to the encoder and getting the corresponding
     embedding.
     """
-    # fetch images and format it appropiately
-    _, _, test_dataloader = load_function(
-        batch_size=batch_size, root=root
-    )
-    images, labels = next(iter(test_dataloader))
     images = images.to(device)
     labels = labels.to(device)
     
@@ -97,8 +91,8 @@ if __name__ == "__main__":
     epsilons = [i/100 for i in range(1, 50, 1)]
     attacks = [
             fb.attacks.FGSM(),
-            # fb.attacks.LinfPGD(),
-            # fb.attacks.LinfBasicIterativeAttack(),
+            fb.attacks.LinfPGD(),
+            fb.attacks.LinfBasicIterativeAttack(),
             # fb.attacks.LinfDeepFoolAttack(),
             # fb.attacks.L2CarliniWagnerAttack(),
             # fb.attacks.LinfAdditiveUniformNoiseAttack(),
@@ -106,12 +100,18 @@ if __name__ == "__main__":
 
     attack_names = [
         "FGSM",
-        # "Linf_PGD",
-        # "Linf_BIM",
+        "Linf_PGD",
+        "Linf_BIM",
         # "Linf_DeepFool",
         # "L2_C&W",
         # "Linf_AUN"
     ]
+
+    # fetch images and format it appropiately
+    _, _, test_dataloader = LOAD_FUNCTION(
+        batch_size=BATCH_SIZE, root=ROOT
+    )
+    images, labels = next(iter(test_dataloader))
 
     # call appropiate methods to get models and embeddings
     fmodel, orig_fmodel, autoencoder_model, classifier_model = make_hybrid_model(
@@ -119,9 +119,7 @@ if __name__ == "__main__":
                                                 classifier_path=CLASSIFIER_PATH,
                                                 bounds=BOUNDS)
     embeddings, images, labels, x_hat = get_embeddings(autoencoder_model=autoencoder_model,
-                                                    root=ROOT, 
-                                                    load_function=LOAD_FUNCTION,
-                                                    batch_size=BATCH_SIZE)
+                                                    images=images, labels=labels)
 
     if PLOT:
         images = images.reshape(RESHAPE).cpu().detach().numpy()
@@ -145,15 +143,18 @@ if __name__ == "__main__":
         print(f"Time spent on modified attack: {time.time() - start}")
 
         assert success.shape == (len(epsilons), len(embeddings))
+        print(f"success: {success.shape}")
         success_ = success.cpu().numpy()
         assert success_.dtype == bool
         attack_success[i] = success_
         print("  ", 1.0 - success_.mean(axis=-1).round(2))
+        print(f"attack success: {attack_success.shape}")
 
     # calculate and report the robust accuracy
     orig_robust_accuracy = 1.0 - orig_attack_success.max(axis=0).mean(axis=-1)
     robust_accuracy = 1.0 - attack_success.max(axis=0).mean(axis=-1)
-
+    print(robust_accuracy.shape)
+    import pdb; pdb.set_trace()
     print("original robust accuracy for perturbations with")
     for eps, acc in zip(epsilons, orig_robust_accuracy):
         print(f"  Linf norm ≤ {eps:<6}: {acc.item() * 100:4.1f} %")

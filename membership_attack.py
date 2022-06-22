@@ -6,7 +6,7 @@ from torch import nn
 from dataloader import load_mnist
 from autoencoder import EncoderMember, DecoderMember
 
-def save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, path='./models/membership_enc_dec.pth.tar'):
+def save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, path='./checkpoints/membership_enc_dec.pth.tar'):
     state = {'epoch': epoch,
              'encoder': encoder,
              'decoder': decoder,
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     try:
         # try loading checkpoint
-        checkpoint = torch.load('./models/membership_enc_dec.pth.tar')
+        checkpoint = torch.load('./checkpoints/membership_enc_dec.pth.tar')
         print("Found Checkpoint :)")
         encoder = checkpoint["encoder"]
         decoder = checkpoint["decoder"]
@@ -45,7 +45,7 @@ if __name__ == "__main__":
         encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=1e-3, weight_decay=1e-5)
         decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=1e-3, weight_decay=1e-5)
         
-        train_dataloader, _ = load_mnist()
+        train_dataloader, _, _ = load_mnist()
 
         for epoch in range(epochs):
             for i, (image, label) in enumerate(train_dataloader):
@@ -76,7 +76,7 @@ if __name__ == "__main__":
         
         save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer)
 
-    _, test_dataloader = load_mnist(batch_size=1)
+    _, _, test_dataloader = load_mnist(batch_size=1)
     for i, (image, label) in enumerate(test_dataloader):
         image = image.to(device)
         label = label.to(device)
@@ -88,21 +88,35 @@ if __name__ == "__main__":
         break
     
     print(f"Label is: {label}")
+    # import pdb; pdb.set_trace()
+    z = z.detach().reshape(10)
+
     # demo_z = torch.rand(10).to(device)
     # demo_z[label] += 0.9
-    demo_z = torch.tensor([-5.4, -3.2, -4.1, -7.1, 0.1, 0, -4.53, 2, -2.3, 0.1]).to(device)
-    demo_z[label] += 20
-    demo_z[label+1] += 20
+    # demo_z = torch.tensor([-5.4, -3.2, -4.1, -7.1, 0.1, 0, -4.53, 2, -2.3, 0.1]).to(device)
+    # demo_z[label] += 20
+    # demo_z[label+1] += 20
     # demo_z = nn.Softmax(demo_z)
-    print(label, demo_z)
-    demo_recon = decoder(demo_z)
-    demo_image = demo_recon.reshape(28, 28).cpu().detach().numpy()
+    # print(f"Crafted z: {demo_z}")
 
     image = image.reshape(28, 28).cpu().detach().numpy()
     reconstructed_image = recon_image.reshape(28, 28).cpu().detach().numpy()
+    # plt.subplot(10, 10, 1, xticks=[], yticks=[])
+    # plt.imshow(reconstructed_image)
 
     plt.gray()
-    fig, axis = plt.subplots(2)
-    axis[0].imshow(reconstructed_image)
-    axis[1].imshow(demo_image)
+    plt.figure(figsize=(16, 16))
+    for i in range(10):
+        for j in range(1, 11):
+            plt.subplot(10, 10, i*10+j, xticks=[], yticks=[])
+            z[(label+i) % 10] += 2
+            # print(f"Crafted z: {z}")
+            demo_recon = decoder(z)
+            demo_image = demo_recon.reshape(28, 28).cpu().detach().numpy()
+            plt.imshow(demo_image)
+        z[(label+i) % 10] -= 20
+
+    # fig, axis = plt.subplots(2)
+    # axis[0].imshow(reconstructed_image)
+    # axis[1].imshow(demo_image)
     plt.savefig(f"./img/membership_enc_dec.png", dpi=600)

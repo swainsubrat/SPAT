@@ -8,7 +8,7 @@ from datasets import CelebaDataset
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
-def load_mnist(batch_size: int=64, root: str='./data/'):
+def load_mnist(batch_size: int=64, root: str='/home/sweta/scratch/datasets/MNIST/'):
     """
     Load MNIST data
     """
@@ -26,7 +26,7 @@ def load_mnist(batch_size: int=64, root: str='./data/'):
 
     return train_dataloader, valid_dataloader, test_dataloader
 
-def labelwise_load_mnist(batch_size: int=64, root: str='./data/', label=7):
+def labelwise_load_mnist(batch_size: int=64, root: str='/home/sweta/scratch/datasets/MNIST/', label=7):
     """
     Load MNIST data
     """
