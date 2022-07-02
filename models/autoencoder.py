@@ -7,6 +7,8 @@ sys.path.append("..")
 import torch
 import torchvision
 
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
 import numpy as np
 import pytorch_lightning as pl
 import torch.nn.functional as F
@@ -15,6 +17,17 @@ import matplotlib.pyplot as plt
 from torch import nn
 from utils import visualize_cifar_reconstructions
 from dataloader import load_mnist, load_cifar, load_fashion_mnist
+
+
+class MaskedLinear(nn.Linear):
+    def __init__(self, *args, mask, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.mask = mask.to(device)
+
+    def forward(self, input):
+        out = F.linear(input*self.mask, self.weight, self.bias)
+
+        return out
 
 
 class BaseAutoEncoder(pl.LightningModule):
@@ -77,9 +90,9 @@ class ANNAutoencoder(BaseAutoEncoder):
     This is an implementation of the autoencoder using ANN
     """
     def __init__(self,
-                 input_dim: int=784,
-                 latent_dim: int=128,
-                 activation_fn: nn.modules.activation=nn.Mish) -> None:
+                input_dim: int=784,
+                latent_dim: int=128,
+                activation_fn: nn.modules.activation=nn.Mish) -> None:
         """
         Args:
             input_dim (int): Dimension of the input to the autoencoder
@@ -118,12 +131,13 @@ class ANNAutoencoder(BaseAutoEncoder):
         x_hat, _ = self(x)
         loss = F.mse_loss(x_hat, x)
         self.log("train_loss", loss, on_step=True, on_epoch=True,\
-                 prog_bar=True, logger=True)
+                prog_bar=True, logger=True)
 
         return loss
 
     def validation_step(self, batch, batch_idx):
         x, y = batch
+        x = x.view(x.size(0), -1)
         x_hat, _ = self(x)
         loss = F.mse_loss(x, x_hat, reduction="none")
         self.log("valid_loss", loss)
@@ -140,16 +154,75 @@ class ANNAutoencoder(BaseAutoEncoder):
         return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "valid_loss"}
 
 
+class ClassConstrainedANNAutoencoder(ANNAutoencoder):
+    """
+    This is an extension of ANN autoencoder with a class-constrain
+    on the latent dimension
+    """
+    def __init__(self,
+                input_dim: int=784,
+                latent_dim: int=100,
+                activation_fn: nn.modules.activation=nn.ReLU) -> None:
+        """
+        Args:
+            input_dim (int): Dimension of the input to the autoencoder
+            latent_dim (int): Dimension of the latent dimension
+            activation_fn (nn.modules.activation): Activation function 
+        """
+        self.save_hyperparameters()
+        super().__init__(input_dim, latent_dim, activation_fn)
+
+        self.mask = torch.block_diag(*[torch.ones(10,1),]*10)
+        self.linear = MaskedLinear(100, 10, mask=self.mask).to(device)
+        self.recon_loss = nn.BCELoss()
+        self.class_loss = nn.CrossEntropyLoss()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        z = self.encoder(x)
+        import pdb; pdb.set_trace()
+        preds = self.linear(z)
+        x_hat = self.decoder(z)
+
+        return x_hat, z, preds
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        x = x.view(x.size(0), -1)
+        x_hat, _, preds = self(x)
+        class_loss = F.cross_entropy(preds, y)
+        recon_loss = F.mse_loss(x, x_hat)
+        loss = class_loss + recon_loss
+
+        self.log("train_loss", loss, on_step=True, on_epoch=True,\
+                prog_bar=True, logger=True)
+        self.log("recon_loss", recon_loss, on_epoch=True,\
+                prog_bar=True, logger=True)
+        self.log("class_loss", class_loss, on_epoch=True,\
+                prog_bar=True, logger=True)
+
+        return loss
+
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        x = x.view(x.size(0), -1)
+        x_hat, z = self(x)
+        class_loss = self.class_loss(z, y)
+        recon_loss = self.recon_loss(x, x_hat)
+        loss = class_loss + recon_loss
+
+        self.log("valid_loss", loss)
+
 class CIFAR10Autoencoder(BaseAutoEncoder):
     """
     This is an implementation of the autoencoder for CIFAR10
     """
     def __init__(self,
-                 input_dim: int=784,
-                 latent_dim: int=128,
-                 num_input_channels: int=3,
-                 base_channel_size: int=32,
-                 activation_fn: nn.modules.activation=nn.GELU) -> None:
+                input_dim: int=784,
+                latent_dim: int=128,
+                num_input_channels: int=3,
+                base_channel_size: int=32,
+                activation_fn: nn.modules.activation=nn.GELU) -> None:
         """
         Args:
             input_dim (int): Dimension of the input to the autoencoder
@@ -289,14 +362,29 @@ if __name__ == "__main__":
     """
     Testing MNIST autoencoder
     """
+    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(
+    #     root="/home/sweta/scratch/datasets/MNIST/", batch_size=128
+    # )
+    # model = ANNAutoencoder()
+    # trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..")
+    # # trainer.fit(model, train_dataloader, valid_dataloader)    
+
+    # model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/version_0/checkpoints/epoch=9-step=9370.ckpt")
+    # model.eval()
+    # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
+    # print(len(preds))
+
+    """
+    Testing class-constrained MNIST autoencoder
+    """
     train_dataloader, valid_dataloader, test_dataloader = load_mnist(
         root="/home/sweta/scratch/datasets/MNIST/", batch_size=128
     )
-    model = ANNAutoencoder()
-    trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..")
-    # trainer.fit(model, train_dataloader)    
+    model = ClassConstrainedANNAutoencoder()
+    trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..", checkpoint_callback=True, logger=True)
+    trainer.fit(model, train_dataloader, valid_dataloader)    
 
-    model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/version_0/checkpoints/epoch=9-step=9370.ckpt")
+    # model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/version_0/checkpoints/epoch=9-step=9370.ckpt")
     model.eval()
     preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
     print(len(preds))

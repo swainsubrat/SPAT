@@ -10,7 +10,7 @@ from torch import nn
 from dataloader import load_mnist, labelwise_load_mnist
 
 ##### Constants #####
-model_path = './models/mnist_enc_dec.pth.tar'
+model_path = './checkpoints/mnist_enc_dec.pth.tar'
 #####################	
 
 def save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, path=model_path):
@@ -116,7 +116,7 @@ if __name__ == "__main__":
     print(f"Using {device} as the accelerator")
     try:
         # try loading checkpoint
-        checkpoint = torch.load('./models/mnist_enc_dec.pth.tar')
+        checkpoint = torch.load('./checkpoints/mnist_enc_dec.pth.tar')
         print("Found Checkpoint :)")
         encoder = checkpoint["encoder"]
         decoder = checkpoint["decoder"]
@@ -135,7 +135,7 @@ if __name__ == "__main__":
         encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr=1e-3, weight_decay=1e-5)
         decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr=1e-3, weight_decay=1e-5)
         
-        train_dataloader, _ = load_mnist()
+        train_dataloader, _, _ = load_mnist()
 
         for epoch in range(10):
             for i, (image, label) in enumerate(train_dataloader):
@@ -157,7 +157,7 @@ if __name__ == "__main__":
             save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer)
     
     # do reconstruction
-    _, test_dataloader = load_mnist(batch_size=1)
+    _, _, test_dataloader = load_mnist(batch_size=1)
     decoded_image    = None
 
     for i, (image, _) in enumerate(test_dataloader):
