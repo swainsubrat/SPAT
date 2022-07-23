@@ -10,7 +10,7 @@ specs:
     - -5
     - 15
   plot: False
-  batch_size: 100
+  batch_size: 1000
   reshape:
     - 28
     - 28

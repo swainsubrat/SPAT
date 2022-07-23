@@ -88,12 +88,12 @@ def get_embeddings(autoencoder_model: BaseAutoEncoder,
     return embeddings, images, labels, x_hat
 
 if __name__ == "__main__":
-    epsilons = [i/100 for i in range(1, 50, 1)]
+    epsilons = [i/100 for i in range(1, 50, 5)]
     attacks = [
             fb.attacks.FGSM(),
             fb.attacks.LinfPGD(),
             fb.attacks.LinfBasicIterativeAttack(),
-            # fb.attacks.LinfDeepFoolAttack(),
+            fb.attacks.LinfDeepFoolAttack(),
             # fb.attacks.L2CarliniWagnerAttack(),
             # fb.attacks.LinfAdditiveUniformNoiseAttack(),
         ]
@@ -102,7 +102,7 @@ if __name__ == "__main__":
         "FGSM",
         "Linf_PGD",
         "Linf_BIM",
-        # "Linf_DeepFool",
+        "Linf_DeepFool",
         # "L2_C&W",
         # "Linf_AUN"
     ]
@@ -151,17 +151,27 @@ if __name__ == "__main__":
         print(f"attack success: {attack_success.shape}")
 
     # calculate and report the robust accuracy
-    orig_robust_accuracy = 1.0 - orig_attack_success.max(axis=0).mean(axis=-1)
-    robust_accuracy = 1.0 - attack_success.max(axis=0).mean(axis=-1)
-    print(robust_accuracy.shape)
-    import pdb; pdb.set_trace()
-    print("original robust accuracy for perturbations with")
-    for eps, acc in zip(epsilons, orig_robust_accuracy):
-        print(f"  Linf norm ≤ {eps:<6}: {acc.item() * 100:4.1f} %")
+    # import pdb; pdb.set_trace()
+    orig_robust_accuracy = 1.0 - orig_attack_success.mean(axis=-1)
+    robust_accuracy = 1.0 - attack_success.mean(axis=-1)
 
-    print("robust accuracy for perturbations with")
-    for eps, acc in zip(epsilons, robust_accuracy):
-        print(f"  Linf norm ≤ {eps:<6}: {acc.item() * 100:4.1f} %")
+    print("original and robust accuracy for perturbations with")
+    for i in range(len(epsilons)):
+        print(f"Linf norm $\leq$ {epsilons[i]:<6}", end= " & ")
+        for j in range(len(attack_names)):
+            print(f"{orig_robust_accuracy[j][i].item() * 100:4.1f}", end=" & ")
+            print(f"{robust_accuracy[j][i].item() * 100:4.1f}", end=" & ")
+        
+        print("\\((")
+        print("\hline")
+
+    # print("robust accuracy for perturbations with")
+    # for i in range(len(epsilons)):
+    #     print(f"Linf norm ≤ {epsilons[i]:<6}", end= " & ")
+    #     for j in range(len(attack_names)):
+    #         print(f"{robust_accuracy[j][i].item() * 100:4.1f}", end=" & ")
+        
+    #     print()
 
 # """
 # code for the plot
@@ -204,48 +214,3 @@ if __name__ == "__main__":
 #             axis[3].set_title("(d) Noises", loc="left")
 #             plt.savefig(f"./img/{attack_names[i]}/epsilon_{epsilons[j]}.png", dpi=600)
 #             break
-
-
-
-# autoencoder_model = ANNAutoencoder.load_from_checkpoint(AUTOENCODER_PATH)
-# classifier_model  = MNISTClassifier.load_from_checkpoint(CLASSIFIER_PATH)
-
-# train_dataloader, test_dataloader = load_mnist(batch_size=1)
-# criterion = nn.CrossEntropyLoss()
-
-# batch = next(iter(train_dataloader))
-# x, y = batch
-# x.requires_grad = True
-
-# z = autoencoder_model.get_z(x)
-# x_hat = autoencoder_model.get_x_hat(z)
-
-# # z.requires_grad = True
-# # x_hat.requires_grad = True
-
-# z.retain_grad()
-# x_hat.retain_grad()
-
-# preds = classifier_model(x_hat)
-# preds = F.log_softmax(preds, dim=-1)
-# print(preds.max(1, keepdim=True)[1][0][0])
-
-# loss = criterion(preds, y)
-# loss.backward()
-
-# noise_grad = torch.sign(z.grad)
-# z_perturbed = z + 0.2 * noise_grad
-# autoencoder_model.eval()
-# fake_img = autoencoder_model.get_x_hat(z_perturbed)
-
-# preds = classifier_model(fake_img)
-# preds = F.log_softmax(preds, dim=-1)
-# print(preds.max(1, keepdim=True)[1][0][0])
-
-# x_hat = x_hat.reshape(28, 28).cpu().detach().numpy()
-# fake_img = fake_img.reshape(28, 28).cpu().detach().numpy()
-# plt.gray()
-# fig, axis = plt.subplots(2)
-# axis[0].imshow(x_hat)
-# axis[1].imshow(fake_img)
-# plt.savefig(f"./img/fgsm_enc_dec2.png", dpi=600)

@@ -39,18 +39,18 @@ attacks = [
         # fb.attacks.FGSM(),
         # fb.attacks.LinfPGD(),
         # fb.attacks.LinfBasicIterativeAttack(),
-        # fb.attacks.LinfDeepFoolAttack(),
+        fb.attacks.LinfDeepFoolAttack(),
         # fb.attacks.L2CarliniWagnerAttack(),
-        fb.attacks.LinfAdditiveUniformNoiseAttack(),
+        # fb.attacks.LinfAdditiveUniformNoiseAttack(),
     ]
 
 attack_names = [
     # "FGSM",
     # "Linf_PGD",
     # "Linf_BIM",
-    # "Linf_DeepFool",
+    "Linf_DeepFool",
     # "L2_C&W",
-    "Linf_AUN"
+    # "Linf_AUN"
 ]
 
 def filter_images(images: Tensor, labels: Tensor):
@@ -101,42 +101,66 @@ for i, attack in enumerate(attacks):
     noises, advs, success = attack(fmodel, embeddings, labels, epsilons=epsilons)
     print(f"Time spent on modified attack: {time.time() - start}")
 
-plt.figure(figsize=(15, 8))
+plt.figure(figsize=(18, 4))
 INDEX = -1
 fake_images = []
 orig_diff_img = images - orig_noises[INDEX]
-for i, img in enumerate(images):
-    ylabel = "Original" if not i else None
-    img = img.reshape(RESHAPE).cpu()
-    plt.subplot(5, 10, i+1, xticks=[], yticks=[], ylabel=ylabel)
-    plt.imshow(img)
-for i, img in enumerate(orig_noises[INDEX]):
-    label = np.argmax(classifier_model(img).detach().cpu()).item()
-    ylabel = attack_names[0] if not i else None
-    img = img.reshape(RESHAPE).cpu()
-    plt.subplot(5, 10, i+11, xticks=[], yticks=[], ylabel=ylabel, xlabel=f"Predicted: {label}")
-    plt.imshow(img)
-for i, img in enumerate(orig_diff_img):
-    ylabel = "Noise" if not i else None
-    img = img.reshape(RESHAPE).cpu()
-    plt.subplot(5, 10, i+21, xticks=[], yticks=[], ylabel=ylabel)
-    plt.imshow(img)
+# for i, img in enumerate(images):
+#     ylabel = "Original" if not i else None
+#     img = img.reshape(RESHAPE).cpu()
+#     plt.subplot(5, 10, i+1, xticks=[], yticks=[], ylabel=ylabel)
+#     plt.imshow(img)
+# for i, img in enumerate(orig_noises[INDEX]):
+#     label = np.argmax(classifier_model(img).detach().cpu()).item()
+#     ylabel = attack_names[0] if not i else None
+#     img = img.reshape(RESHAPE).cpu()
+#     plt.subplot(5, 10, i+11, xticks=[], yticks=[], ylabel=ylabel, xlabel=f"Predicted: {label}")
+#     plt.imshow(img)
+# for i, img in enumerate(orig_diff_img):
+#     ylabel = "Noise" if not i else None
+#     img = img.reshape(RESHAPE).cpu()
+#     plt.subplot(5, 10, i+21, xticks=[], yticks=[], ylabel=ylabel)
+#     plt.imshow(img)
 for i, adv in enumerate(noises[INDEX]):
     ylabel = f"{attack_names[0]}" if not i else None
     img = autoencoder_model.get_x_hat(adv)
     label = np.argmax(classifier_model(img).detach().cpu()).item()
     fake_images.append(img)
     img = img.reshape(RESHAPE).detach().cpu()
-    plt.subplot(5, 10, i+31, xticks=[], yticks=[], ylabel=ylabel, xlabel=f"Predicted: {label}")
-    plt.imshow(img)
+    # plt.subplot(5, 10, i+31, xticks=[], yticks=[], ylabel=ylabel, xlabel=f"Predicted: {label}")
+    # plt.imshow(img)
 fake_images = torch.stack(fake_images)
 diff_img = images - fake_images
-for i, img in enumerate(diff_img):
-    ylabel = "Noise" if not i else None
-    img = img.reshape(RESHAPE).detach().cpu()
-    plt.subplot(5, 10, i+41, xticks=[], yticks=[], ylabel=ylabel)
+
+# import pdb; pdb.set_trace()
+orig_norm_inf = np.linalg.norm(orig_diff_img.detach().cpu(), ord=np.inf, axis=1)
+norm_inf      = np.linalg.norm(diff_img.detach().cpu(), ord=np.inf, axis=1)
+orig_norm_2 = np.linalg.norm(orig_diff_img.detach().cpu(), ord=2, axis=1)
+norm_2      = np.linalg.norm(diff_img.detach().cpu(), ord=2, axis=1)
+
+print(f"Linf Norm of Original Attacks: {orig_norm_inf}")
+print(f"Linf Norm of Modified Attacks: {norm_inf}")
+print(f"L2 Norm of Original Attacks: {orig_norm_2}")
+print(f"L2 Norm of Original Attacks: {norm_2}")
+
+for i, linf_norm in enumerate(orig_norm_inf):
+    ylabel = "Deepfool" if not i else None
+    img = orig_diff_img[i].reshape(RESHAPE).detach().cpu()
+    plt.subplot(2, 10, i+1, xticks=[], yticks=[], ylabel=ylabel, xlabel=f"Linf: {orig_norm_inf[i]:4.1f}, L2: {orig_norm_2[i]:4.1f}")
     plt.imshow(img)
-plt.savefig('img/orig_attack_aun.jpg')
+    
+for i, linf_norm in enumerate(norm_inf):
+    ylabel = "Our Method" if not i else None
+    img = diff_img[i].reshape(RESHAPE).detach().cpu()
+    plt.subplot(2, 10, i+11, xticks=[], yticks=[], ylabel=ylabel, xlabel=f"Linf: {norm_inf[i]:4.1f}, L2: {norm_2[i]:4.1f}")
+    plt.imshow(img)
+plt.savefig('img/noise_norm_deepfool.jpg')
+# for i, img in enumerate(diff_img):
+#     ylabel = "Noise" if not i else None
+#     img = img.reshape(RESHAPE).detach().cpu()
+#     plt.subplot(5, 10, i+41, xticks=[], yticks=[], ylabel=ylabel)
+#     plt.imshow(img)
+# plt.savefig('img/orig_attack_aun.jpg')
 
 # print(type(noises), type(advs), type(success))
 # print(noises[-1].shape, advs[-1].shape)
