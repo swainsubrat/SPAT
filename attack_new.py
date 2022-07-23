@@ -33,10 +33,10 @@ RESHAPE          = (config["specs"]["reshape"][0], config["specs"]["reshape"][1]
 LOAD_FUNCTION    = load_mnist
 
 def make_hybrid_model(autoencoder_class: BaseAutoEncoder=ANNAutoencoder,
-                      classifier_class: pl.LightningModule=MNISTClassifier,
-                      autoencoder_path: str="./lightning_logs/version_0/checkpoints/epoch=9-step=9370.ckpt",
-                      classifier_path: str="./lightning_logs/version_6/checkpoints/epoch=9-step=9370.ckpt",
-                      bounds: Tuple=(-1, 15)):
+                    classifier_class: pl.LightningModule=MNISTClassifier,
+                    autoencoder_path: str="./lightning_logs/version_0/checkpoints/epoch=9-step=9370.ckpt",
+                    classifier_path: str="./lightning_logs/version_6/checkpoints/epoch=9-step=9370.ckpt",
+                    bounds: Tuple=(-1, 15)):
     """
     A function to load individual models(autoencoder and classifier) and
     make a hybrid model.

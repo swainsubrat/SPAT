@@ -6,7 +6,7 @@ from torch import nn
 from dataloader import load_mnist
 from autoencoder import EncoderMember, DecoderMember
 
-def save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, path='./checkpoints/membership_enc_dec.pth.tar'):
+def save_checkpoint(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, path='./checkpoints/membership_enc_dec1.pth.tar'):
     state = {'epoch': epoch,
              'encoder': encoder,
              'decoder': decoder,
@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     try:
         # try loading checkpoint
-        checkpoint = torch.load('./checkpoints/membership_enc_dec.pth.tar')
+        checkpoint = torch.load('./checkpoints/membership_enc_dec1.pth.tar')
         print("Found Checkpoint :)")
         encoder = checkpoint["encoder"]
         decoder = checkpoint["decoder"]
