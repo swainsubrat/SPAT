@@ -390,52 +390,53 @@ if __name__ == "__main__":
     """
     Testing MNIST autoencoder
     """
-    train_dataloader, valid_dataloader, test_dataloader = load_mnist(
-        root="/home/sweta/scratch/datasets/MNIST/", batch_size=128
-    )
-    model = ANNAutoencoder()
-    trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..")
-    # trainer.fit(model, train_dataloader, valid_dataloader)    
+    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(
+    #     root="/home/sweta/scratch/datasets/MNIST/", batch_size=128
+    # )
+    # model = ANNAutoencoder()
+    # trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..")
+    # # trainer.fit(model, train_dataloader, valid_dataloader)    
 
-    model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/version_0/checkpoints/epoch=9-step=9370.ckpt")
-    model.eval()
-    preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
-    print(len(preds))
+    # model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/version_0/checkpoints/epoch=9-step=9370.ckpt")
+    # model.eval()
+    # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
+    # print(len(preds))
 
     """
     Testing class-constrained MNIST autoencoder
     """
-    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(batch_size=128)
-    # model = ClassConstrainedANNAutoencoder()
-    # trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..", checkpoint_callback=True, logger=True)
-    # # trainer.fit(model, train_dataloader, valid_dataloader)    
+    train_dataloader, valid_dataloader, test_dataloader = load_mnist(batch_size=128)
+    model = ClassConstrainedANNAutoencoder()
+    trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..", checkpoint_callback=True, logger=True)
+    # trainer.fit(model, train_dataloader, valid_dataloader)    
 
-    # model = ClassConstrainedANNAutoencoder.load_from_checkpoint("../lightning_logs/version_14/checkpoints/epoch=9-step=4290.ckpt")
-    # model = model.to(device)
-    # model.eval()
+    model = ClassConstrainedANNAutoencoder.load_from_checkpoint("../lightning_logs/version_14/checkpoints/epoch=9-step=4290.ckpt")
+    model = model.to(device)
+    model.eval()
 
-    # _, _, test_dataloader = load_mnist(batch_size=1)
-    # encoded_samples = []
-    # for i, (image, label) in enumerate(test_dataloader):
-    #     image = image.to(device)
-    #     label = label.item()
+    _, _, test_dataloader = load_mnist(batch_size=1)
+    encoded_samples = []
+    for i, (image, label) in enumerate(test_dataloader):
+        image = image.to(device)
+        label = label.item()
 
-    #     with torch.no_grad():
-    #         z = model.get_z(image)
-    #     encoded_img = z.flatten().cpu().numpy()
-    #     encoded_sample = {f"Enc. Variable {i}": enc for i, enc in enumerate(encoded_img)}
-    #     encoded_sample['label'] = label
-    #     encoded_samples.append(encoded_sample)
+        with torch.no_grad():
+            z = model.get_z(image)
+        encoded_img = z.flatten().cpu().numpy()
+        encoded_sample = {f"Enc. Variable {i}": enc for i, enc in enumerate(encoded_img)}
+        encoded_sample['label'] = label
+        encoded_samples.append(encoded_sample)
 
-    # encoded_samples = pd.DataFrame(encoded_samples)
-    # # print(encoded_samples)
-    # tsne = TSNE(n_components=2)
-    # tsne_results = tsne.fit_transform(encoded_samples.drop(['label'],axis=1))
-    # fig = px.scatter(tsne_results, x=0, y=1,
-    #                 color=encoded_samples.label.astype(str),
-    #                 color_discrete_map={"0":"red", "1":"blue", "2":"yellow", "3":"black", "4":"brown", "5":"aqua", "6":"maroon", "7":"purple", "8":"teal", "9":"lime"},
-    #                 labels={'0': 'tsne-2d-one', '1': 'tsne-2d-two'})
-    # fig.write_image("../img/tsne_lightning.png")
+    encoded_samples = pd.DataFrame(encoded_samples)
+    # print(encoded_samples)
+    tsne = TSNE(n_components=2)
+    tsne_results = tsne.fit_transform(encoded_samples.drop(['label'],axis=1))
+
+    fig = px.scatter(tsne_results, x=0, y=1,
+                    color=encoded_samples.label.astype(str),
+                    color_discrete_map={"0":"red", "1":"blue", "2":"yellow", "3":"gray", "4":"brown", "5":"aqua", "6":"maroon", "7":"purple", "8":"teal", "9":"lime"},
+                    labels={'0': 'dimension-1', '1': 'dimension-2'})
+    fig.write_image("../img/tsne_constrained_ae.png")
 
     """
     Testing FashionMNIST autoencoder

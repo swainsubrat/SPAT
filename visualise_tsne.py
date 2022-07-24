@@ -36,6 +36,7 @@ encoded_samples = pd.DataFrame(encoded_samples)
 tsne = TSNE(n_components=2)
 tsne_results = tsne.fit_transform(encoded_samples.drop(['label'],axis=1))
 fig = px.scatter(tsne_results, x=0, y=1,
-                color=encoded_samples.label.astype(str),
-                labels={'0': 'tsne-2d-one', '1': 'tsne-2d-two'})
-fig.write_image("img/tsne_normal.png")
+                    color=encoded_samples.label.astype(str),
+                    color_discrete_map={"0":"red", "1":"blue", "2":"yellow", "3":"gray", "4":"brown", "5":"aqua", "6":"maroon", "7":"purple", "8":"teal", "9":"lime"},
+                    labels={'0': 'dimension-1', '1': 'dimension-2'})
+fig.write_image("img/tsne_vanilla_ae.png")
