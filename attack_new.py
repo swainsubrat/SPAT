@@ -15,12 +15,14 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 
 from torch import nn, Tensor
 from typing import Tuple, Callable
-from dataloader import load_mnist
-from models.classifier import MNISTClassifier, CIFAR10Classifier
-from models.autoencoder import ANNAutoencoder, BaseAutoEncoder, CIFAR10Autoencoder
+from dataloader import load_celeba, load_mnist
+from models.classifier import (MNISTClassifier, CIFAR10Classifier,
+                                CelebAClassifier)
+from models.autoencoder import (ANNAutoencoder, BaseAutoEncoder,
+                                CIFAR10Autoencoder, CelebAAutoencoder)
 
 # first load the config
-with open("./configs/mnist.yml", "r") as f:
+with open("./configs/celeba.yml", "r") as f:
     config = yaml.safe_load(f)
 
 ROOT             = config["paths"]["root"]
@@ -30,7 +32,7 @@ BOUNDS           = (config["specs"]["bounds"][0], config["specs"]["bounds"][1])
 PLOT             = config["specs"]["plot"]
 BATCH_SIZE       = config["specs"]["batch_size"]
 RESHAPE          = (config["specs"]["reshape"][0], config["specs"]["reshape"][1])
-LOAD_FUNCTION    = load_mnist
+LOAD_FUNCTION    = load_celeba
 
 def make_hybrid_model(autoencoder_class: BaseAutoEncoder=ANNAutoencoder,
                     classifier_class: pl.LightningModule=MNISTClassifier,
@@ -53,6 +55,8 @@ def make_hybrid_model(autoencoder_class: BaseAutoEncoder=ANNAutoencoder,
         autoencoder_model.decoder,
         classifier_model.model
     )
+    # print(hybrid_model)
+    # import pdb; pdb.set_trace()
     hybrid_model.eval()
     fmodel = fb.PyTorchModel(hybrid_model, bounds=bounds)
     orig_fmodel = fb.PyTorchModel(classifier_model, bounds=bounds)
@@ -108,13 +112,15 @@ if __name__ == "__main__":
     ]
 
     # fetch images and format it appropiately
-    _, _, test_dataloader = LOAD_FUNCTION(
+    _, test_dataloader = LOAD_FUNCTION(
         batch_size=BATCH_SIZE, root=ROOT
     )
     images, labels = next(iter(test_dataloader))
 
     # call appropiate methods to get models and embeddings
     fmodel, orig_fmodel, autoencoder_model, classifier_model = make_hybrid_model(
+                                                autoencoder_class=CelebAAutoencoder,
+                                                classifier_class=CelebAClassifier,
                                                 autoencoder_path=AUTOENCODER_PATH,
                                                 classifier_path=CLASSIFIER_PATH,
                                                 bounds=BOUNDS)
@@ -125,17 +131,18 @@ if __name__ == "__main__":
         images = images.reshape(RESHAPE).cpu().detach().numpy()
 
     # launch an attack
+    import pdb; pdb.set_trace()
     orig_attack_success = np.zeros((len(attacks), len(epsilons), len(embeddings)), dtype=bool)
     attack_success = np.zeros((len(attacks), len(epsilons), len(embeddings)), dtype=bool)
     for i, attack in enumerate(attacks):
 
         print(f"Running {attack_names[i]} Attack....")
 
-        # carryout the attack on original
-        start = time.time()
-        orig_noises, orig_advs, orig_success = attack(orig_fmodel, images, labels, epsilons=epsilons)
-        print(f"Time spent on original attack: {time.time() - start}")
-        orig_attack_success[i] = orig_success.cpu().numpy()
+        # # carryout the attack on original
+        # start = time.time()
+        # orig_noises, orig_advs, orig_success = attack(orig_fmodel, images, labels, epsilons=epsilons)
+        # print(f"Time spent on original attack: {time.time() - start}")
+        # orig_attack_success[i] = orig_success.cpu().numpy()
 
         # carryout the modified attack
         start = time.time()
@@ -151,15 +158,14 @@ if __name__ == "__main__":
         print(f"attack success: {attack_success.shape}")
 
     # calculate and report the robust accuracy
-    # import pdb; pdb.set_trace()
-    orig_robust_accuracy = 1.0 - orig_attack_success.mean(axis=-1)
+    # orig_robust_accuracy = 1.0 - orig_attack_success.mean(axis=-1)
     robust_accuracy = 1.0 - attack_success.mean(axis=-1)
 
     print("original and robust accuracy for perturbations with")
     for i in range(len(epsilons)):
         print(f"Linf norm $\leq$ {epsilons[i]:<6}", end= " & ")
         for j in range(len(attack_names)):
-            print(f"{orig_robust_accuracy[j][i].item() * 100:4.1f}", end=" & ")
+            # print(f"{orig_robust_accuracy[j][i].item() * 100:4.1f}", end=" & ")
             print(f"{robust_accuracy[j][i].item() * 100:4.1f}", end=" & ")
         
         print("\\((")

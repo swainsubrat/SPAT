@@ -9,9 +9,9 @@ import torchvision
 import pytorch_lightning as pl
 import torch.nn.functional as F
 
-from torch import nn
+from torch import logit, nn
 from torchmetrics.functional import accuracy
-from dataloader import load_mnist, load_cifar, load_fashion_mnist
+from dataloader import load_celeba, load_mnist, load_cifar, load_fashion_mnist
 from torch.optim.lr_scheduler import OneCycleLR
 
 
@@ -73,23 +73,6 @@ class MNISTClassifier(pl.LightningModule):
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
-        # optimizer = torch.optim.SGD(
-        #     self.parameters(),
-        #     lr=self.hparams.lr,
-        #     momentum=0.9,
-        #     weight_decay=5e-4,
-        # )
-        # steps_per_epoch = 45000 // self.batch_size
-        # scheduler_dict = {
-        #     "scheduler": OneCycleLR(
-        #         optimizer,
-        #         0.1,
-        #         epochs=self.trainer.max_epochs,
-        #         steps_per_epoch=steps_per_epoch,
-        #     ),
-        #     "interval": "step",
-        # }
-        # return {"optimizer": optimizer, "lr_scheduler": scheduler_dict}
 
 
 class CIFAR10Classifier(pl.LightningModule):
@@ -185,8 +168,89 @@ class CIFAR10Classifier(pl.LightningModule):
         return {"optimizer": optimizer, "lr_scheduler": scheduler_dict}
 
 
-if __name__ == "__main__":
+class CelebAClassifier(pl.LightningModule):
+    """
+    Implementation of CelebA gender classification
+    """
+    def __init__(self, batch_size: int=64, lr: float=0.001) -> None:
+        super().__init__()
+
+        self.save_hyperparameters()
+        self.lr = lr
+        self.aux_logits = False
+        self.batch_size = batch_size
+        self.criterion = nn.BCELoss()
+
+        self.model = torchvision.models.inception_v3(pretrained=True, aux_logits=self.aux_logits)
+        if self.aux_logits:
+            self.model.AuxLogits.fc = nn.Sequential(nn.Linear(768, 1), nn.Sigmoid())
+        self.model.fc = nn.Sequential(nn.Linear(in_features=2048, out_features=1), nn.Sigmoid())
     
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.aux_logits:
+            x, aux_x = self.model(x)
+            return x.flatten(), aux_x.flatten()
+        else:
+            x = self.model(x)
+            return x.flatten()
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y = y.to(torch.float32)
+        if self.aux_logits:
+            logits, aux_logits = self(x)
+            loss = F.binary_cross_entropy(logits, y) + 0.4 * F.binary_cross_entropy(aux_logits, y)
+        else:
+            logits = self(x)
+            loss = F.binary_cross_entropy(logits, y)
+
+        self.log("train_loss", loss)
+        return loss
+
+    def evaluate(self, batch, stage=None):
+        x, y = batch
+        y = y.to(torch.float32)
+        if self.aux_logits:
+            logits, aux_logits = self(x)
+            loss = F.binary_cross_entropy(logits, y) + 0.4 * F.binary_cross_entropy(aux_logits, y)
+        else:
+            logits = self(x)
+            loss = F.binary_cross_entropy(logits, y)
+
+        preds = torch.argmax(logits, dim=1)
+        acc = accuracy(preds, y)
+
+        if stage:
+            self.log(f"{stage}_loss", loss, prog_bar=True)
+            self.log(f"{stage}_acc", acc, prog_bar=True)
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y = y.to(torch.float32)
+        logits = self.model(x).flatten()
+        loss = F.binary_cross_entropy(logits, y)
+        # import pdb; pdb.set_trace()
+        preds = (logits>0.5).int()
+        y = y.int()
+        acc = accuracy(preds, y)
+
+        self.log("test_loss", loss, prog_bar=True)
+        self.log("test_acc", acc, prog_bar=True)
+
+    def predict_step(self, batch, batch_idx):
+        x, y = batch
+        pred = self.model(x)
+        
+        return pred.flatten()
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=self.lr)
+
+if __name__ == "__main__":
+
+    import os    
+    os.environ["CUDA_VISIBLE_DEVICES"] = "2, 3"
+
     """
     CIFAR classifier testing
     """
@@ -207,18 +271,18 @@ if __name__ == "__main__":
     """
     MNIST classifier testing
     """
-    train_dataloader, valid_dataloader, test_dataloader = load_mnist(root="/home/sweta/scratch/datasets/MNIST/")
+    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(root="/home/sweta/scratch/datasets/MNIST/")
 
-    model = MNISTClassifier()
-    trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..")
-    # trainer.fit(model, train_dataloader)   
+    # model = MNISTClassifier()
+    # trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..")
+    # # trainer.fit(model, train_dataloader)   
 
-    model = MNISTClassifier.load_from_checkpoint("../lightning_logs/version_6/checkpoints/epoch=9-step=9370.ckpt")
-    model.eval()
-    # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
-    # print(len(preds), preds[0].shape)
-    p = trainer.test(model, dataloaders=test_dataloader, verbose=False)
-    print(p)
+    # model = MNISTClassifier.load_from_checkpoint("../lightning_logs/version_6/checkpoints/epoch=9-step=9370.ckpt")
+    # model.eval()
+    # # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
+    # # print(len(preds), preds[0].shape)
+    # p = trainer.test(model, dataloaders=test_dataloader, verbose=False)
+    # print(p)
 
     """
     FashionMNIST classifier testing
@@ -235,3 +299,19 @@ if __name__ == "__main__":
     # print(len(preds), preds[0].shape)
     # p = trainer.test(model, dataloaders=test_dataloader, verbose=False)
     # print(p)
+
+    """
+    CelebA classifier testing
+    """
+    train_dataloader, test_dataloader = load_celeba(batch_size=32)
+
+    model = CelebAClassifier()
+    trainer = pl.Trainer(max_epochs=10, gpus=2, default_root_dir="..")
+    trainer.fit(model, train_dataloader)   
+
+    # model = CelebAClassifier.load_from_checkpoint("../lightning_logs/celeba_classifier/checkpoints/epoch=9-step=202600.ckpt")
+    # model.eval()
+    # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
+    # print(len(preds), preds[0].shape)
+    p = trainer.test(model, dataloaders=test_dataloader, verbose=True)
+    print(p)

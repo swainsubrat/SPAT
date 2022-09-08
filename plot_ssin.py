@@ -24,6 +24,9 @@ from models.classifier import MNISTClassifier, CIFAR10Classifier
 from models.autoencoder import ANNAutoencoder, BaseAutoEncoder, CIFAR10Autoencoder
 from attack_new import make_hybrid_model, get_embeddings
 
+from torchmetrics.image.lpip import LearnedPerceptualImagePatchSimilarity
+lpips = LearnedPerceptualImagePatchSimilarity(net_type='vgg')
+
 # first load the config
 with open("./configs/mnist.yml", "r") as f:
     config = yaml.safe_load(f)
@@ -78,9 +81,10 @@ def compute_ssim(images_1: List[Tensor], images_2: List[Tensor]):
     """
     assert len(images_1) == len(images_2)
 
+    import pdb; pdb.set_trace()
     ssim_score = []
     for img1, img2 in zip(images_1, images_2):
-        ssim_score.append(psnr(img1.reshape(RESHAPE).detach().cpu().numpy(), img2.reshape(RESHAPE).detach().cpu().numpy()))
+        ssim_score.append(lpips(img1.reshape(-1, RESHAPE).detach().cpu().numpy(), img2.reshape(-1, RESHAPE).detach().cpu().numpy()))
     
     return ssim_score
 
@@ -111,7 +115,7 @@ for i, attack in enumerate(attacks):
     noises, advs, success = attack(fmodel, embeddings, labels, epsilons=epsilons)
     print(f"Time spent on modified attack: {time.time() - start}")
 
-plt.figure(figsize=(18, 4))
+plt.figure(figsize=(15, 4))
 INDEX = -1
 fake_images = []
 orig_diff_img = images - orig_noises[INDEX]
@@ -120,9 +124,6 @@ recon_images = autoencoder_model(images)[0]
 orig_attack_adv_images = orig_noises[INDEX]
 modified_attack_adv_z = noises[INDEX]
 modified_attack_adv_images = autoencoder_model.get_x_hat(modified_attack_adv_z)
-
-# print(type(images), type(recon_images), type(orig_attack_adv_images), type(modified_attack_adv_images))
-# import pdb; pdb.set_trace()
 
 ssim_scores = {}
 ssim_scores["reconstructed"] = compute_ssim(images, recon_images)
@@ -133,11 +134,23 @@ import pprint as pprint
 print(ssim_scores)
 
 
-# for i, img in enumerate(images):
-#     ylabel = "Original" if not i else None
-#     img = img.reshape(RESHAPE).cpu()
-#     plt.subplot(5, 10, i+1, xticks=[], yticks=[], ylabel=ylabel)
-#     plt.imshow(img)
+for i, img in enumerate(recon_images):
+    ylabel = "Reconstructed" if not i else None
+    img = img.reshape(RESHAPE).detach().cpu()
+    plt.subplot(3, 10, i+1, xticks=[], yticks=[], ylabel=ylabel, xlabel=np.round(ssim_scores["reconstructed"][i], 3))
+    plt.imshow(img)
+for i, img in enumerate(orig_attack_adv_images):
+    ylabel = "Orig Attack" if not i else None
+    img = img.reshape(RESHAPE).detach().cpu()
+    plt.subplot(3, 10, i+11, xticks=[], yticks=[], ylabel=ylabel, xlabel=np.round(ssim_scores["orig_adv_images"][i], 3))
+    plt.imshow(img)
+for i, img in enumerate(modified_attack_adv_images):
+    ylabel = "Modified Attack" if not i else None
+    img = img.reshape(RESHAPE).detach().cpu()
+    plt.subplot(3, 10, i+21, xticks=[], yticks=[], ylabel=ylabel, xlabel=np.round(ssim_scores["modified_adv_images"][i], 3))
+    plt.imshow(img)
+
+plt.savefig('img/lpips_block.jpg')
 # for i, img in enumerate(orig_noises[INDEX]):
 #     label = np.argmax(classifier_model(img).detach().cpu()).item()
 #     ylabel = attack_names[0] if not i else None

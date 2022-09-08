@@ -3,7 +3,7 @@ import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 
 from torch.utils.data import DataLoader, random_split
-from datasets import CelebaDataset
+from dataset import CelebaDataset
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -13,16 +13,16 @@ def load_mnist(batch_size: int=64, root: str='/home/sweta/scratch/datasets/MNIST
     Load MNIST data
     """
     t = transforms.Compose([
-                       transforms.ToTensor(),
-                       transforms.Lambda(lambda x: torch.flatten(x))]
-                       )
+                        transforms.ToTensor(),
+                        transforms.Lambda(lambda x: torch.flatten(x))]
+                        )
     train = datasets.MNIST(root=root, train=True, download=True, transform=t)
     train_data, valid_data = random_split(train, [55000, 5000])
     test_data  = datasets.MNIST(root=root, train=False, download=True, transform=t)
 
     train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True, num_workers=4)
     valid_dataloader = DataLoader(valid_data, batch_size=batch_size, drop_last=True, num_workers=4)
-    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, shuffle=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, num_workers=4)
 
     return train_dataloader, valid_dataloader, test_dataloader
 
@@ -42,7 +42,7 @@ def labelwise_load_mnist(batch_size: int=64, root: str='/home/sweta/scratch/data
     train_data.data    = train_data.data[idx]
 
     train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True)
-    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, shuffle=True)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True)
 
     return train_dataloader, test_dataloader
 
@@ -68,40 +68,38 @@ def load_cifar(batch_size: int=64, root: str="./data/"):
 
     train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True, num_workers=4)
     valid_dataloader = DataLoader(valid_data, batch_size=batch_size, drop_last=True, num_workers=4)
-    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, shuffle=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, num_workers=4)
 
     return train_dataloader, valid_dataloader, test_dataloader
 
-def load_celeba(batch_size: int=64, root: str="./data/"):
+def load_celeba(batch_size: int=64, root: str="/home/sweta/scratch/datasets/CelebA/"):
     """
     Load CelebA dataset
     """
-    # transform_train = transforms.Compose([
-    #                                     #   transforms.Grayscale(),
-    #                                       transforms.ToTensor(),
-    #                                       transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),])
-    transform_train = transforms.Compose([transforms.CenterCrop((178, 178)),
-                                       transforms.Resize((128, 128)),
-                                       #transforms.Grayscale(),                                       
-                                       #transforms.Lambda(lambda x: x/255.),
-                                       transforms.ToTensor()])
+    transform_train = transforms.Compose([
+                                        transforms.CenterCrop(178),
+                                        transforms.Resize(128),
+                                        transforms.ToTensor(),
+                                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                                        ])
 
     transform_test = transforms.Compose([
-                                        #   transforms.Grayscale(),
-                                          transforms.ToTensor(),
-                                          transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),])
+                                        transforms.CenterCrop(178),
+                                        transforms.Resize(128),
+                                        transforms.ToTensor(),
+                                        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+                                        ])
 
-    train_data = CelebaDataset(txt_path=root+'celeba/celeba_gender_attr_train.txt',
-                               img_dir=root+'celeba/img_align_celeba/',
-                               transform=transform_train)
-    test_data = CelebaDataset(txt_path=root+'celeba/celeba_gender_attr_test.txt',
-                              img_dir=root+'celeba/img_align_celeba/',
-                              transform=transform_train)
-    
+    train_data = CelebaDataset(txt_path=root+'celeba_gender_attr_train.txt',
+                                        img_dir=root+'img_align_celeba/',
+                                        transform=transform_train)
+    test_data = CelebaDataset(txt_path=root+'celeba_gender_attr_test.txt',
+                                    img_dir=root+'img_align_celeba/',
+                                    transform=transform_test)
 
     train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=4)
     # valid_dataloader = DataLoader(valid_data, batch_size=batch_size, shuffle=True, num_workers=4)
-    test_dataloader  = DataLoader(test_data, batch_size=batch_size, shuffle=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, num_workers=4)
 
     return train_dataloader, test_dataloader
 
@@ -110,23 +108,24 @@ def load_fashion_mnist(batch_size: int=64, root: str="/home/sweta/scratch/datase
     Load Fashion-MNIST data
     """
     t = transforms.Compose([
-                       transforms.ToTensor(),
-                       transforms.Lambda(lambda x: torch.flatten(x))]
-                       )
+                        transforms.ToTensor(),
+                        transforms.Lambda(lambda x: torch.flatten(x))]
+                        )
     train = datasets.FashionMNIST(root=root, train=True, download=True, transform=t)
     train_data, valid_data = random_split(train, [55000, 5000])
     test_data  = datasets.FashionMNIST(root=root, train=False, download=True, transform=t)
 
     train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True, num_workers=4)
     valid_dataloader = DataLoader(valid_data, batch_size=batch_size, drop_last=True, num_workers=4)
-    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, shuffle=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, num_workers=4)
 
     return train_dataloader, valid_dataloader, test_dataloader
 
 
 if __name__ == "__main__":
-    train_dataloader, valid_dataloader, test_dataloader = load_fashion_mnist(root="/home/sweta/scratch/datasets/FashionMNIST/")
+    train_dataloader, test_dataloader = load_celeba()
     print(len(train_dataloader))
     for x, y in train_dataloader:
-        print(x.shape)
+        print(x[0])
         break
+    

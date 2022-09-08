@@ -22,7 +22,49 @@ import matplotlib.pyplot as plt
 
 from torch import nn
 from utils import visualize_cifar_reconstructions
-from dataloader import load_mnist, load_cifar, load_fashion_mnist
+from dataloader import load_celeba, load_mnist, load_cifar, load_fashion_mnist
+
+
+def double_conv(in_channels, out_channels):
+    return nn.Sequential(
+        nn.Conv2d(in_channels, out_channels, kernel_size = 3, padding=1),
+        nn.BatchNorm2d(out_channels),
+        nn.ReLU(inplace=True),
+        # nn.Dropout(p=0.5), ## regualarisation..using high dropout rate of 0.9...lets see for few moments...
+        nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
+        nn.BatchNorm2d(out_channels),
+        nn.ReLU(inplace=True),
+        # nn.Dropout(p=0.9) ## dual dropout 
+    )
+
+
+def down(in_channels, out_channels):
+    ## downsampling with maxpool then double conv
+    return nn.Sequential(
+        nn.MaxPool2d(2),
+        double_conv(in_channels, out_channels)
+    )
+
+
+def outconv(in_channels, out_channels):
+    return nn.Conv2d(in_channels, out_channels, kernel_size=1)
+
+
+class up(nn.Module):
+    ## upsampling then double conv 
+    def __init__(self, in_channels, out_channels):
+        super(up, self).__init__()
+        self.up = nn.ConvTranspose2d(in_channels, in_channels, kernel_size=2, stride = 2)
+        self.conv = double_conv(in_channels, out_channels)
+    def forward(self, x1, x2): 
+        x1 = self.up(x1)
+        # input is CHW 
+        diffY = x2.size()[2] - x1.size()[2]
+        diffX = x2.size()[3] - x1.size()[3]
+
+        x = F.pad(x1, [diffX // 2, diffX - diffX // 2,
+                        diffY // 2, diffY - diffY // 2])
+        return self.conv(x)
 
 
 class MaskedLinear(nn.Linear):
@@ -241,6 +283,7 @@ class ClassConstrainedANNAutoencoder(ANNAutoencoder):
 
         self.log("valid_loss", loss)
 
+
 class CIFAR10Autoencoder(BaseAutoEncoder):
     """
     This is an implementation of the autoencoder for CIFAR10
@@ -348,7 +391,132 @@ class CIFAR10Autoencoder(BaseAutoEncoder):
         return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "valid_loss"}
 
 
+class CelebAAutoencoder(BaseAutoEncoder):
+    """
+    This is an implementation of the autoencoder for CelebA
+    """
+    def __init__(self,
+                # input_dim: int=784,
+                # latent_dim: int=128,
+                lr: float=1e-4,
+                num_input_channels: int=3,
+                num_output_channels: int=3,
+                base_channel_size: int=16,
+                activation_fn: nn.modules.activation=nn.ReLU) -> None:
+        """
+        Args:
+            # input_dim (int): Dimension of the input to the autoencoder
+            # latent_dim (int): Dimension of the latent dimension
+            num_input_channels (int): Number of input channels of the image.
+            For CIFAR, this parameter is 3
+            num_output_channels (int): Number of output channels of the image.
+            For CIFAR, this parameter is 3
+            base_channel_size : Number of channels we use in the first 
+            convolutional layers. Deeper layers might use a duplicate of it.
+            activation_fn (nn.modules.activation): Activation function 
+        """
+        self.save_hyperparameters()
+        self.lr = lr
+        self.in_chs   = num_input_channels
+        self.out_chs  = num_output_channels
+        self.base_chs = base_channel_size
+        self.activation_fn = activation_fn
+        super().__init__()
+
+    def define_encoder(self):
+        self.encoder = nn.Sequential(
+            double_conv(self.in_chs, self.base_chs),
+            down(self.base_chs,self.base_chs*2),
+            down(self.base_chs*2,self.base_chs*4),
+            down(self.base_chs*4,self.base_chs*8), 
+        )
+
+    def define_decoder(self):
+        self.decoder = nn.Sequential(
+            up(self.base_chs*8,self.base_chs*4),
+            up(self.base_chs*4,self.base_chs*2),
+            up(self.base_chs*2,self.base_chs),
+            outconv(self.base_chs,self.out_chs)
+        )
+
+    def forward(self, x):  
+        x1 = self.encoder[0](x)
+        x2 = self.encoder[1](x1)
+        x3 = self.encoder[2](x2)
+        x4 = self.encoder[3](x3) 
+        
+        x = self.decoder[0](x4,x3)
+        x = self.decoder[1](x,x2)
+        x = self.decoder[2](x,x1)
+        logits = self.decoder[3](x)
+        outputs = F.sigmoid(logits)
+
+        return outputs
+
+    def training_step(self, batch, batch_idx):
+        x, _ = batch
+        x_hat = self(x)
+        loss_bce = F.binary_cross_entropy_with_logits(x, x_hat, reduction="none")
+        loss_mse = F.mse_loss(x, x_hat, reduction="none")
+        loss = (0.2 * loss_bce) + (0.8 * loss_mse)
+        loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
+        self.log("train_loss", loss)
+
+        return loss
+    
+    # def validation_step(self, batch, batch_idx):
+    #     x, _ = batch
+    #     x_hat, _ = self(x)
+    #     loss = F.mse_loss(x, x_hat, reduction="none")
+    #     loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
+    #     # if batch_idx == 1: print(loss);
+    #     self.log("valid_loss", loss)
+    
+    def predict_step(self, batch, batch_idx):
+        x, _ = batch
+        
+        return self(x)
+
+    def configure_optimizers(self):
+
+        return torch.optim.Adam(self.parameters(), lr=self.lr)
+        # optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=20, min_lr=5e-5)
+        
+        # return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "valid_loss"}
+
 if __name__ == "__main__":
+
+    """
+    Testing CelebA autoencoder
+    """
+    import os
+    import torchsummary
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = "5, 6"
+    train_dataloader, test_dataloader = load_celeba(batch_size=64)
+    
+    model = CelebAAutoencoder(lr=1e-5)
+    # torchsummary.summary(model, (3, 128, 128))
+    trainer = pl.Trainer(max_epochs=50, gpus=2, default_root_dir="..")
+    # trainer.fit(model, train_dataloader)
+
+    train_dataloader, test_dataloader = load_celeba(batch_size=4)
+    input_imgs, _ = next(iter(test_dataloader))
+    model = CelebAAutoencoder.load_from_checkpoint("../lightning_logs/version_16/checkpoints/epoch=49-step=63350.ckpt")
+    model.eval()
+    reconst_imgs = model(input_imgs)
+
+    # input_imgs   = input_imgs.reshape(3, 128, 128).detach()
+    # reconst_imgs = reconst_imgs.reshape(3, 128, 128).detach()
+    # fig, axis = plt.subplots(1,2)
+
+    # axis[0].imshow(np.transpose(input_imgs, (1, 2, 0)))
+    # axis[1].imshow(np.transpose(reconst_imgs, (1, 2, 0)))
+    
+    # plt.savefig(f"../img/celeba_reconstruction1.png", dpi=1000)
+    # plt.show()
+    visualize_cifar_reconstructions(input_imgs, reconst_imgs, file_name="celeba_ae_8mse_2bce_recons")
 
     """
     Testing CIFAR autoencoder
@@ -405,38 +573,38 @@ if __name__ == "__main__":
     """
     Testing class-constrained MNIST autoencoder
     """
-    train_dataloader, valid_dataloader, test_dataloader = load_mnist(batch_size=128)
-    model = ClassConstrainedANNAutoencoder()
-    trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..", checkpoint_callback=True, logger=True)
-    # trainer.fit(model, train_dataloader, valid_dataloader)    
+    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(batch_size=128)
+    # model = ClassConstrainedANNAutoencoder()
+    # trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..", checkpoint_callback=True, logger=True)
+    # # trainer.fit(model, train_dataloader, valid_dataloader)    
 
-    model = ClassConstrainedANNAutoencoder.load_from_checkpoint("../lightning_logs/version_14/checkpoints/epoch=9-step=4290.ckpt")
-    model = model.to(device)
-    model.eval()
+    # model = ClassConstrainedANNAutoencoder.load_from_checkpoint("../lightning_logs/version_14/checkpoints/epoch=9-step=4290.ckpt")
+    # model = model.to(device)
+    # model.eval()
 
-    _, _, test_dataloader = load_mnist(batch_size=1)
-    encoded_samples = []
-    for i, (image, label) in enumerate(test_dataloader):
-        image = image.to(device)
-        label = label.item()
+    # _, _, test_dataloader = load_mnist(batch_size=1)
+    # encoded_samples = []
+    # for i, (image, label) in enumerate(test_dataloader):
+    #     image = image.to(device)
+    #     label = label.item()
 
-        with torch.no_grad():
-            z = model.get_z(image)
-        encoded_img = z.flatten().cpu().numpy()
-        encoded_sample = {f"Enc. Variable {i}": enc for i, enc in enumerate(encoded_img)}
-        encoded_sample['label'] = label
-        encoded_samples.append(encoded_sample)
+    #     with torch.no_grad():
+    #         z = model.get_z(image)
+    #     encoded_img = z.flatten().cpu().numpy()
+    #     encoded_sample = {f"Enc. Variable {i}": enc for i, enc in enumerate(encoded_img)}
+    #     encoded_sample['label'] = label
+    #     encoded_samples.append(encoded_sample)
 
-    encoded_samples = pd.DataFrame(encoded_samples)
-    # print(encoded_samples)
-    tsne = TSNE(n_components=2)
-    tsne_results = tsne.fit_transform(encoded_samples.drop(['label'],axis=1))
+    # encoded_samples = pd.DataFrame(encoded_samples)
+    # # print(encoded_samples)
+    # tsne = TSNE(n_components=2)
+    # tsne_results = tsne.fit_transform(encoded_samples.drop(['label'],axis=1))
 
-    fig = px.scatter(tsne_results, x=0, y=1,
-                    color=encoded_samples.label.astype(str),
-                    color_discrete_map={"0":"red", "1":"blue", "2":"yellow", "3":"gray", "4":"brown", "5":"aqua", "6":"maroon", "7":"purple", "8":"teal", "9":"lime"},
-                    labels={'0': 'dimension-1', '1': 'dimension-2'})
-    fig.write_image("../img/tsne_constrained_ae.png")
+    # fig = px.scatter(tsne_results, x=0, y=1,
+    #                 color=encoded_samples.label.astype(str),
+    #                 color_discrete_map={"0":"red", "1":"blue", "2":"yellow", "3":"gray", "4":"brown", "5":"aqua", "6":"maroon", "7":"purple", "8":"teal", "9":"lime"},
+    #                 labels={'0': 'dimension-1', '1': 'dimension-2'})
+    # fig.write_image("../img/tsne_constrained_ae.png")
 
     """
     Testing FashionMNIST autoencoder

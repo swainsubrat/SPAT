@@ -18,10 +18,10 @@ from models.autoencoder import ANNAutoencoder, BaseAutoEncoder, CIFAR10Autoencod
 
 
 def make_hybrid_model(autoencoder_class: BaseAutoEncoder=ANNAutoencoder,
-                      classifier_class: pl.LightningModule=MNISTClassifier,
-                      autoencoder_path: str="./lightning_logs/version_0/checkpoints/epoch=9-step=9370.ckpt",
-                      classifier_path: str="./lightning_logs/version_6/checkpoints/epoch=9-step=9370.ckpt",
-                      bounds: Tuple=(-1, 15)):
+                    classifier_class: pl.LightningModule=MNISTClassifier,
+                    autoencoder_path: str="./lightning_logs/version_0/checkpoints/epoch=9-step=9370.ckpt",
+                    classifier_path: str="./lightning_logs/version_6/checkpoints/epoch=9-step=9370.ckpt",
+                    bounds: Tuple=(-1, 15)):
     """
     A function to load individual models(autoencoder and classifier) and
     make a hybrid model.
@@ -44,8 +44,8 @@ def make_hybrid_model(autoencoder_class: BaseAutoEncoder=ANNAutoencoder,
     return fmodel, autoencoder_model, classifier_model
 
 def get_embeddings(root: str=None,
-                   load_function: Callable=load_mnist,
-                   batch_size: int=100):
+                    load_function: Callable=load_mnist,
+                    batch_size: int=100):
     """
     passing the input to the encoder and getting the corresponding
     embedding.
@@ -106,9 +106,9 @@ attack_names = [
 ]
 
 fmodel, autoencoder_model, classifier_model = make_hybrid_model(
-                                              autoencoder_path=AUTOENCODER_PATH,
-                                              classifier_path=CLASSIFIER_PATH,
-                                              bounds=BOUNDS)
+                                            autoencoder_path=AUTOENCODER_PATH,
+                                            classifier_path=CLASSIFIER_PATH,
+                                            bounds=BOUNDS)
 embeddings, images, labels, x_hat = get_embeddings(root=ROOT, load_function=LOAD_FUNCTION, batch_size=BATCH_SIZE)
 
 if PLOT:
