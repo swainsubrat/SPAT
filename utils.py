@@ -1,6 +1,8 @@
 import torch
+import torchvision
 import numpy as np
 import pickle
+import matplotlib.pyplot as plt
 
 from typing import List, Dict
 
@@ -35,21 +37,32 @@ def load(path: str) -> Dict:
 
 def save_checkpoint_autoencoder(epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, path):
     state = {'epoch': epoch,
-             'encoder': encoder,
-             'decoder': decoder,
-             'encoder_optimizer': encoder_optimizer,
-             'decoder_optimizer': decoder_optimizer}
+            'encoder': encoder,
+            'decoder': decoder,
+            'encoder_optimizer': encoder_optimizer,
+            'decoder_optimizer': decoder_optimizer}
 
     filename = path
     torch.save(state, filename)
 
 def save_checkpoint_autoencoder_new(epoch, model, optimizer, path):
     state = {'epoch': epoch,
-             'model': model,
-             'optimizer': optimizer}
+            'model': model,
+            'optimizer': optimizer}
 
     filename = path
     torch.save(state, filename)
+
+def visualize_cifar_reconstructions(input_imgs, reconst_imgs, file_name):
+    imgs = torch.stack([input_imgs, reconst_imgs], dim=1).flatten(0, 1)
+    grid = torchvision.utils.make_grid(imgs, nrow=4, normalize=True, range=(-1, 1))
+    grid = grid.permute(1, 2, 0)
+    plt.figure(figsize=(7, 4.5))
+    plt.title("Reconstructed image from the latent codes")
+    plt.imshow(grid)
+    plt.axis("off")
+    plt.savefig(f"../img/{file_name}.png", dpi=600)
+    plt.show()
 
 if __name__ == "__main__":
     a = [1, 2, 3]

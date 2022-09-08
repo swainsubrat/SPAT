@@ -130,3 +130,4 @@ dmypy.json
 data/
 models/mnist_enc_dec.pth.tar
 models/membership_enc_dec.pth.tar
+lightning_logs/celeba_classifier/checkpoints/epoch=9-step=202600.ckpt
