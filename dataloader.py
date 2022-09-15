@@ -31,9 +31,9 @@ def labelwise_load_mnist(batch_size: int=64, root: str='/home/sweta/scratch/data
     Load MNIST data
     """
     t = transforms.Compose([
-                       transforms.ToTensor(),
-                       transforms.Lambda(lambda x: torch.flatten(x))]
-                       )
+                    transforms.ToTensor(),
+                    transforms.Lambda(lambda x: torch.flatten(x))]
+                    )
     train_data = datasets.MNIST(root=root, train=True, download=True, transform=t)
     test_data  = datasets.MNIST(root=root, train=False, download=True, transform=t)
 
@@ -46,7 +46,7 @@ def labelwise_load_mnist(batch_size: int=64, root: str='/home/sweta/scratch/data
 
     return train_dataloader, test_dataloader
 
-def load_cifar(batch_size: int=64, root: str="./data/"):
+def load_cifar(batch_size: int=64, root: str="/home/sweta/scratch/datasets/CIFAR10/"):
     """
     Load CIFAR-10 data
     """
@@ -121,6 +121,12 @@ def load_fashion_mnist(batch_size: int=64, root: str="/home/sweta/scratch/datase
 
     return train_dataloader, valid_dataloader, test_dataloader
 
+DATALOADER_MAPPINGS = {
+    "mnist": load_mnist,
+    "cifar10": load_cifar,
+    "celeba": load_celeba,
+    "fmnist": load_fashion_mnist
+}
 
 if __name__ == "__main__":
     train_dataloader, test_dataloader = load_celeba()
