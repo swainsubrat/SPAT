@@ -4,9 +4,9 @@ paths:
   root: /home/sweta/scratch/datasets/MNIST/
 
 classifiers:
-  mnist_ann_1: ./lightning_logs/version_6/checkpoints/epoch=9-step=9370.ckpt
+  mnist_ann_1: ./lightning_logs/mnist_classifier/checkpoints/epoch=9-step=9370.ckpt
 autoencoders:
-  ann_128: ./lightning_logs/version_0/checkpoints/epoch=9-step=9370.ckpt
+  ann_128: ./lightning_logs/mnist_ae_mse/checkpoints/epoch=9-step=9370.ckpt
 
 miscs:
   nb_classes: 10

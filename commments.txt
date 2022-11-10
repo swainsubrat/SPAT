@@ -1,0 +1,2 @@
+1. Check for on-manifold adversarial examples.
+2. 

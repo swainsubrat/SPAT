@@ -1,17 +1,17 @@
-import yaml
 import sys
-sys.path.append("..")
 
-from models import MODEL_MAPPINGS
-from attacks import ATTACK_MAPPINGS
-from dataloader import DATALOADER_MAPPINGS
+import yaml
+
+sys.path.append("..")
 
 import numpy as np
 import pytorch_lightning as pl
-
-from torch import nn
-from art.attacks.evasion import FastGradientMethod, DeepFool
+import torch
 from art.estimators.classification import PyTorchClassifier
+from torch import nn
+
+from attacks import ATTACK_MAPPINGS
+from models import MODEL_MAPPINGS
 
 
 def get_xyz(args, autoencoder_model, test_dataloader):
@@ -26,14 +26,14 @@ def get_xyz(args, autoencoder_model, test_dataloader):
 
 def get_models(args):
     """
-    load the corresponding model and convert to art
-    object
+    load the corresponding model and return in the
+    eval mode.
     """
     dataset_name = args.model_name.split("_")[0]
     with open(f"./configs/{dataset_name}.yml", "r") as f:
         config = yaml.safe_load(f)
 
-    config["device"]       = args.device
+    config["device"]       = torch.device(args.device)
     config["dataset_name"] = dataset_name
 
     classifier_path = config["classifiers"][args.model_name]
@@ -86,9 +86,9 @@ def hybridize(x, y, z, config, classifier_model, autoencoder_model):
     accuracy = np.sum(np.argmax(predictions, -1) == y[1])/ len(y[1])
     print("Accuracy on benign test examples(from reconstructed): {}%".format(accuracy * 100))
 
-    return classifier, hybrid_classifier
+    return classifier, hybrid_classifier, accuracy
 
-def execute_attack(attack_name, x, y, z, classifier, hybrid_classifier):
+def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, autoencoder_model):
     result = {}
     if attack_name == "all":
         del ATTACK_MAPPINGS["all"]
@@ -101,6 +101,10 @@ def execute_attack(attack_name, x, y, z, classifier, hybrid_classifier):
             accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
             result[name]["original"] = accuracy
             result[name]["x_test_adv_np"] = x_test_adv_np
+
+            # calculate noise
+            x_test_noise = x_test_adv_np - x[1]
+            result[name]["x_test_noise"] = x_test_noise
             print("Accuracy on adversarial test examples: {}%".format(accuracy * 100))
 
             modified_attack = attack_name(hybrid_classifier)
@@ -111,7 +115,23 @@ def execute_attack(attack_name, x, y, z, classifier, hybrid_classifier):
             accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
             result[name]["modified"] = accuracy
             result[name]["z_test_adv_np"] = z_test_adv_np
+            xx_test_adv = autoencoder_model.decoder(torch.Tensor(z_test_adv_np).to(config["device"]))
+            xx_test     = autoencoder_model.decoder(torch.Tensor(z[1]).to(config["device"]))
+
+            # calculate noise
+            xx_test_noise = xx_test_adv - xx_test
+            result[name]["xx_test_noise"] = xx_test_noise.cpu().detach().numpy()
+            result[name]["xx_test_adv_np"] = xx_test_adv.cpu().detach().numpy()
             print("Accuracy on adversarial test examples(Modified): {}%".format(accuracy * 100))
+
+            hybrid_noise = result[name]["xx_test_noise"] + 0.1 * x_test_noise
+            hybrid_x_np = x[1] + hybrid_noise
+            result[name]["hybrid_x_np"] = hybrid_x_np
+
+            predictions = classifier.predict(hybrid_x_np)
+            accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
+            print("Accuracy on adversarial test examples(Hybrid): {}%".format(accuracy * 100))
+            result[name]["hybrid"] = accuracy
     else:
         name = attack_name.__name__
         result[name] = {}
@@ -121,6 +141,10 @@ def execute_attack(attack_name, x, y, z, classifier, hybrid_classifier):
         accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
         result[name]["original"] = accuracy
         result[name]["x_test_adv_np"] = x_test_adv_np
+
+        # calculate noise
+        x_test_noise = x_test_adv_np - x[1]
+        result[name]["x_test_noise"] = x_test_noise
         print("Accuracy on adversarial test examples: {}%".format(accuracy * 100))
 
         modified_attack = attack_name(hybrid_classifier)
@@ -131,6 +155,22 @@ def execute_attack(attack_name, x, y, z, classifier, hybrid_classifier):
         accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
         result[name]["modified"] = accuracy
         result[name]["z_test_adv_np"] = z_test_adv_np
+        xx_test_adv = autoencoder_model.decoder(torch.Tensor(z_test_adv_np).to(config["device"]))
+        xx_test     = autoencoder_model.decoder(torch.Tensor(z[1]).to(config["device"]))
+
+        # calculate noise
+        xx_test_noise = xx_test_adv - xx_test
+        result[name]["xx_test_noise"] = xx_test_noise.cpu().detach().numpy()
+        result[name]["xx_test_adv_np"] = xx_test_adv.cpu().detach().numpy()
         print("Accuracy on adversarial test examples(Modified): {}%".format(accuracy * 100))
+
+        hybrid_noise = result[name]["xx_test_noise"] + 0.1 * x_test_noise
+        hybrid_x_np = x[1] + hybrid_noise
+        result[name]["hybrid_x_np"] = hybrid_x_np
+
+        predictions = classifier.predict(hybrid_x_np)
+        accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
+        print("Accuracy on adversarial test examples(Hybrid): {}%".format(accuracy * 100))
+        result[name]["hybrid"] = accuracy
 
     return result

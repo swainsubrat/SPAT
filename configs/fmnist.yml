@@ -1,0 +1,20 @@
+model: FashionMNIST
+
+paths:
+  root: /home/sweta/scratch/datasets/FashionMNIST/
+
+classifiers:
+  fmnist_ann_1: ./lightning_logs/fmnist_classifier/checkpoints/epoch=49-step=42950.ckpt
+autoencoders:
+  ann_128: ./lightning_logs/fmnist_ae_mse/checkpoints/epoch=19-step=8580.ckpt
+
+miscs:
+  nb_classes: 10
+  min_pixel_value: 0.0
+  max_pixel_value: 1.0
+  reshape:
+    - 28
+    - 28
+  input_shape:
+    - 1
+    - 784

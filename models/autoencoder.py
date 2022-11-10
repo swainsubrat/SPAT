@@ -290,7 +290,7 @@ class CIFAR10Autoencoder(BaseAutoEncoder):
     """
     def __init__(self,
                 input_dim: int=784,
-                latent_dim: int=128,
+                latent_dim: int=256,
                 num_input_channels: int=3,
                 base_channel_size: int=32,
                 activation_fn: nn.modules.activation=nn.GELU) -> None:
@@ -490,22 +490,22 @@ if __name__ == "__main__":
     """
     Testing CelebA autoencoder
     """
-    import os
-    import torchsummary
+    # import os
+    # import torchsummary
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "5, 6"
-    train_dataloader, test_dataloader = load_celeba(batch_size=64)
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "5, 6"
+    # train_dataloader, test_dataloader = load_celeba(batch_size=64)
     
-    model = CelebAAutoencoder(lr=1e-5)
-    # torchsummary.summary(model, (3, 128, 128))
-    trainer = pl.Trainer(max_epochs=50, gpus=2, default_root_dir="..")
-    # trainer.fit(model, train_dataloader)
+    # model = CelebAAutoencoder(lr=1e-5)
+    # # torchsummary.summary(model, (3, 128, 128))
+    # trainer = pl.Trainer(max_epochs=50, gpus=2, default_root_dir="..")
+    # # trainer.fit(model, train_dataloader)
 
-    train_dataloader, test_dataloader = load_celeba(batch_size=4)
-    input_imgs, _ = next(iter(test_dataloader))
-    model = CelebAAutoencoder.load_from_checkpoint("../lightning_logs/version_16/checkpoints/epoch=49-step=63350.ckpt")
-    model.eval()
-    reconst_imgs = model(input_imgs)
+    # train_dataloader, test_dataloader = load_celeba(batch_size=4)
+    # input_imgs, _ = next(iter(test_dataloader))
+    # model = CelebAAutoencoder.load_from_checkpoint("../lightning_logs/version_16/checkpoints/epoch=49-step=63350.ckpt")
+    # model.eval()
+    # reconst_imgs = model(input_imgs)
 
     # input_imgs   = input_imgs.reshape(3, 128, 128).detach()
     # reconst_imgs = reconst_imgs.reshape(3, 128, 128).detach()
@@ -516,44 +516,32 @@ if __name__ == "__main__":
     
     # plt.savefig(f"../img/celeba_reconstruction1.png", dpi=1000)
     # plt.show()
-    visualize_cifar_reconstructions(input_imgs, reconst_imgs, file_name="celeba_ae_8mse_2bce_recons")
+    # visualize_cifar_reconstructions(input_imgs, reconst_imgs, file_name="celeba_ae_8mse_2bce_recons")
 
     """
     Testing CIFAR autoencoder
     """
     # import os
-    # import torchsummary
 
-    # os.environ["CUDA_VISIBLE_DEVICES"] = "2, 4"
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "2, 7"
     # train_dataloader, valid_dataloader, test_dataloader = load_cifar(
-    #     root="/home/sweta/scratch/datasets/CIFAR/", batch_size=128
+    #     root="/home/sweta/scratch/datasets/CIFAR10/", batch_size=128
     # )
     
     # model = CIFAR10Autoencoder()
-    # torchsummary.summary(model, (3, 32, 32))
-    # # trainer = pl.Trainer(max_epochs=500, gpus=2, default_root_dir="..")
     # trainer = pl.Trainer(max_epochs=200, gpus=2, default_root_dir="..")
-    # trainer.fit(model, train_dataloader, valid_dataloader)
+    # # trainer.fit(model, train_dataloader, valid_dataloader)
 
-    # Testing
+    # # Testing
     # train_dataloader, valid_dataloader, test_dataloader = load_cifar(
-    #     root="/home/sweta/scratch/datasets/CIFAR/", batch_size=4
+    #     root="/home/sweta/scratch/datasets/CIFAR10/", batch_size=1
     # )
     # input_imgs, _ = next(iter(test_dataloader))
-    # model = CIFAR10Autoencoder.load_from_checkpoint("../lightning_logs/version_9/checkpoints/epoch=199-step=35000.ckpt")
+    # model = CIFAR10Autoencoder.load_from_checkpoint("../lightning_logs/cifar10_ae_mse/checkpoints/epoch=199-step=35000.ckpt")
     # model.eval()
     # reconst_imgs, _ = model(input_imgs)
 
-    # input_imgs   = input_imgs.reshape(3, 32, 32).detach()
-    # reconst_imgs = reconst_imgs.reshape(3, 32, 32).detach()
-    # fig, axis = plt.subplots(1,2)
-
-    # axis[0].imshow(np.transpose(input_imgs, (1, 2, 0)))
-    # axis[1].imshow(np.transpose(reconst_imgs, (1, 2, 0)))
-    
-    # plt.savefig(f"../img/recons/new_recon.png", dpi=1000)
-    # plt.show()
-    # visualize_cifar_reconstructions(input_imgs, reconst_imgs)
+    # visualize_cifar_reconstructions(input_imgs, reconst_imgs, file_name="cifar10_ae_mse")
 
     """
     Testing MNIST autoencoder
@@ -565,7 +553,7 @@ if __name__ == "__main__":
     # trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..")
     # # trainer.fit(model, train_dataloader, valid_dataloader)    
 
-    # model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/version_0/checkpoints/epoch=9-step=9370.ckpt")
+    # model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/mnist_ae_mse/checkpoints/epoch=9-step=9370.ckpt")
     # model.eval()
     # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
     # print(len(preds))
@@ -609,26 +597,26 @@ if __name__ == "__main__":
     """
     Testing FashionMNIST autoencoder
     """
-    # train_dataloader, valid_dataloader, test_dataloader = load_fashion_mnist(
-    #     root="/home/sweta/scratch/datasets/FashionMNIST/", batch_size=128
-    # )
-    # model = ANNAutoencoder()
-    # trainer = pl.Trainer(max_epochs=20, gpus=1, default_root_dir="..")
-    # # trainer.fit(model, train_dataloader, valid_dataloader)    
+    train_dataloader, valid_dataloader, test_dataloader = load_fashion_mnist(
+        root="/home/sweta/scratch/datasets/FashionMNIST/", batch_size=128
+    )
+    model = ANNAutoencoder()
+    trainer = pl.Trainer(max_epochs=20, gpus=1, default_root_dir="..")
+    # trainer.fit(model, train_dataloader, valid_dataloader)    
 
-    # train_dataloader, valid_dataloader, test_dataloader = load_fashion_mnist(
-    #     root="/home/sweta/scratch/datasets/FashionMNIST/", batch_size=1
-    # )
-    # model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/version_12/checkpoints/epoch=19-step=8580.ckpt")
-    # model.eval()
+    train_dataloader, valid_dataloader, test_dataloader = load_fashion_mnist(
+        root="/home/sweta/scratch/datasets/FashionMNIST/", batch_size=1
+    )
+    model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/fmnist_ae_mse/checkpoints/epoch=19-step=8580.ckpt")
+    model.eval()
     
-    # images, labels = next(iter(train_dataloader))
-    # recons, _      = model(images)
-    # images = images.reshape(28, 28).cpu().detach().numpy()
-    # recons = recons.reshape(28, 28).cpu().detach().numpy()
+    images, labels = next(iter(train_dataloader))
+    recons, _      = model(images)
+    images = images.reshape(28, 28).cpu().detach().numpy()
+    recons = recons.reshape(28, 28).cpu().detach().numpy()
 
-    # plt.gray()
-    # fig, axis = plt.subplots(2)
-    # axis[0].imshow(images)
-    # axis[1].imshow(recons)
-    # plt.savefig(f"../img/recons/fmnist_enc_dec.png", dpi=600)
+    plt.gray()
+    fig, axis = plt.subplots(2)
+    axis[0].imshow(images)
+    axis[1].imshow(recons)
+    plt.savefig(f"../plots/fmnist_enc_dec.png", dpi=600)

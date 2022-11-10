@@ -6,7 +6,7 @@ ATTACK_MAPPINGS = {
     "all" : "all",
     "fgsm": FastGradientMethod,
     "pgd" : ProjectedGradientDescentPyTorch,
-    "cnw" : CarliniLInfMethod,
+    # "cnw" : CarliniLInfMethod,
     "bim" : BasicIterativeMethod,
     "deepfool" : DeepFool,
 }
