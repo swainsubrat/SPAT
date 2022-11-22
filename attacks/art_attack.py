@@ -78,10 +78,14 @@ def hybridize(x, y, z, config, classifier_model, autoencoder_model):
     )
 
     # Step 5: Evaluate the ART classifier on benign test examples
+    print(type(x[1]), x[1].shape)
     predictions = classifier.predict(x[1])
     accuracy = np.sum(np.argmax(predictions, -1) == y[1])/ len(y[1])
     print("Accuracy on benign test examples: {}%".format(accuracy * 100))
 
+    print(z[1].shape)
+    # from torchsummary import summary
+    # summary(hybrid_classifier_model, (128, 16, 16))
     predictions = hybrid_classifier.predict(z[1])
     accuracy = np.sum(np.argmax(predictions, -1) == y[1])/ len(y[1])
     print("Accuracy on benign test examples(from reconstructed): {}%".format(accuracy * 100))
@@ -127,6 +131,7 @@ def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, 
             hybrid_noise = result[name]["xx_test_noise"] + 0.1 * x_test_noise
             hybrid_x_np = x[1] + hybrid_noise
             result[name]["hybrid_x_np"] = hybrid_x_np
+            result[name]["hybrid_noise"] = hybrid_noise
 
             predictions = classifier.predict(hybrid_x_np)
             accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
@@ -167,6 +172,7 @@ def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, 
         hybrid_noise = result[name]["xx_test_noise"] + 0.1 * x_test_noise
         hybrid_x_np = x[1] + hybrid_noise
         result[name]["hybrid_x_np"] = hybrid_x_np
+        result[name]["hybrid_noise"] = hybrid_noise
 
         predictions = classifier.predict(hybrid_x_np)
         accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
