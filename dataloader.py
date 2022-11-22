@@ -93,15 +93,16 @@ def load_celeba(batch_size: int=64, root: str="/home/sweta/scratch/datasets/Cele
     train_data = CelebaDataset(txt_path=root+'celeba_gender_attr_train.txt',
                                         img_dir=root+'img_align_celeba/',
                                         transform=transform_train)
+    train_data, valid_data = random_split(train_data, [150000, 12079])
     test_data = CelebaDataset(txt_path=root+'celeba_gender_attr_test.txt',
                                     img_dir=root+'img_align_celeba/',
                                     transform=transform_test)
 
     train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=4)
-    # valid_dataloader = DataLoader(valid_data, batch_size=batch_size, shuffle=True, num_workers=4)
+    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, shuffle=True, num_workers=4)
     test_dataloader  = DataLoader(test_data, batch_size=batch_size, num_workers=4)
 
-    return train_dataloader, test_dataloader
+    return train_dataloader, valid_dataloader, test_dataloader
 
 def load_fashion_mnist(batch_size: int=64, root: str="/home/sweta/scratch/datasets/FashionMNIST/"):
     """

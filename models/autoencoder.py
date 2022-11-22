@@ -2,6 +2,7 @@
 Pytorch-Lightning implementation of the vanilla autoencoder
 """
 import sys
+
 sys.path.append("..")
 
 import torch
@@ -9,20 +10,18 @@ import torchvision
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import torch
-import pandas as pd
 import plotly.express as px
-from sklearn.manifold import TSNE
-
 import pytorch_lightning as pl
+import torch
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
-
+from sklearn.manifold import TSNE
 from torch import nn
+
+from dataloader import load_celeba, load_cifar, load_fashion_mnist, load_mnist
 from utils import visualize_cifar_reconstructions
-from dataloader import load_celeba, load_mnist, load_cifar, load_fashion_mnist
 
 
 def double_conv(in_channels, out_channels):
@@ -438,8 +437,25 @@ class CelebAAutoencoder(BaseAutoEncoder):
             up(self.base_chs*2,self.base_chs),
             outconv(self.base_chs,self.out_chs)
         )
+    
+    def get_z(self, x: torch.Tensor) -> torch.Tensor:
+        x1 = self.encoder[0](x)
+        x2 = self.encoder[1](x1)
+        x3 = self.encoder[2](x2)
+        x4 = self.encoder[3](x3)
 
-    def forward(self, x):  
+        return x4, x3, x2, x1
+    
+    def get_x_hat(self, x4, x3, x2, x1) -> torch.Tensor:
+        x = self.decoder[0](x4,x3)
+        x = self.decoder[1](x,x2)
+        x = self.decoder[2](x,x1)
+        logits = self.decoder[3](x)
+        outputs = F.sigmoid(logits)
+
+        return outputs
+
+    def forward(self, x):
         x1 = self.encoder[0](x)
         x2 = self.encoder[1](x1)
         x3 = self.encoder[2](x2)
@@ -485,27 +501,182 @@ class CelebAAutoencoder(BaseAutoEncoder):
         
         # return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "valid_loss"}
 
+
+class CelebAAutoencoderNew(BaseAutoEncoder):
+    """
+    This is an implementation of the autoencoder for CelebA
+    """
+    def __init__(self,
+                lr: float=1e-4,
+                activation_fn: nn.modules.activation=nn.ReLU) -> None:
+        """
+        Args:
+            lr (float): learning rate
+            activation_fn (nn.modules.activation): Activation function 
+        """
+        self.save_hyperparameters()
+        self.lr = lr
+        self.activation_fn = activation_fn
+        super().__init__()
+
+    def define_encoder(self):
+        self.encoder = nn.Sequential(
+            nn.Conv2d(3, 16, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(16, 16, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+
+            nn.Conv2d(16, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+
+            nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+            
+            nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False),
+            
+            nn.Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(128, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+        )
+
+    def define_decoder(self):
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(128, 128, kernel_size=(2, 2), stride=(2, 2)),
+
+            nn.Conv2d(128, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(64, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+
+            nn.ConvTranspose2d(64, 64, kernel_size=(2, 2), stride=(2, 2)),
+
+            nn.Conv2d(64, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+
+            nn.ConvTranspose2d(32, 32, kernel_size=(2, 2), stride=(2, 2)),
+
+            nn.Conv2d(32, 16, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(16, 16, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
+            nn.BatchNorm2d(16, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True),
+            nn.ReLU(inplace=True),
+
+            nn.Conv2d(16, 3, kernel_size=(1, 1), stride=(1, 1)),
+        )
+    
+    # def get_z(self, x: torch.Tensor) -> torch.Tensor:
+    #     x1 = self.encoder[0](x)
+    #     x2 = self.encoder[1](x1)
+    #     x3 = self.encoder[2](x2)
+    #     x4 = self.encoder[3](x3)
+
+    #     return x4, x3, x2, x1
+    
+    # def get_x_hat(self, x4, x3, x2, x1) -> torch.Tensor:
+    #     x = self.decoder[0](x4,x3)
+    #     x = self.decoder[1](x,x2)
+    #     x = self.decoder[2](x,x1)
+    #     logits = self.decoder[3](x)
+    #     outputs = F.sigmoid(logits)
+
+    #     return outputs
+
+    def forward(self, x):
+        # x1 = self.encoder[0](x)
+        # x2 = self.encoder[1](x1)
+        # x3 = self.encoder[2](x2)
+        # x4 = self.encoder[3](x3) 
+        
+        # x = self.decoder[0](x4,x3)
+        # x = self.decoder[1](x,x2)
+        # x = self.decoder[2](x,x1)
+        # logits = self.decoder[3](x)
+        z = self.encoder(x)
+        logits = self.decoder(z)
+
+        outputs = F.sigmoid(logits)
+
+        return outputs, z
+
+    def training_step(self, batch, batch_idx):
+        x, _ = batch
+        x_hat, _ = self(x)
+        loss_bce = F.binary_cross_entropy_with_logits(x, x_hat, reduction="none")
+        loss_mse = F.mse_loss(x, x_hat, reduction="none")
+        loss = (0 * loss_bce) + (1.0 * loss_mse)
+        loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
+        self.log("train_loss", loss)
+
+        return loss
+    
+    # def validation_step(self, batch, batch_idx):
+    #     x, _ = batch
+    #     x_hat, _ = self(x)
+    #     loss = F.mse_loss(x, x_hat, reduction="none")
+    #     loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
+    #     # if batch_idx == 1: print(loss);
+    #     self.log("valid_loss", loss)
+    
+    def predict_step(self, batch, batch_idx):
+        x, _ = batch
+        
+        return self(x)
+
+    def configure_optimizers(self):
+
+        return torch.optim.Adam(self.parameters(), lr=self.lr)
+        # optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=20, min_lr=5e-5)
+        
+        # return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "valid_loss"}
+
+
 if __name__ == "__main__":
 
     """
     Testing CelebA autoencoder
     """
-    # import os
-    # import torchsummary
+    import os
+    import torchsummary
 
-    # os.environ["CUDA_VISIBLE_DEVICES"] = "5, 6"
-    # train_dataloader, test_dataloader = load_celeba(batch_size=64)
+    os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+    train_dataloader, valid_dataloader, test_dataloader = load_celeba(batch_size=64)
     
-    # model = CelebAAutoencoder(lr=1e-5)
-    # # torchsummary.summary(model, (3, 128, 128))
-    # trainer = pl.Trainer(max_epochs=50, gpus=2, default_root_dir="..")
-    # # trainer.fit(model, train_dataloader)
+    model = CelebAAutoencoderNew(lr=1e-5)
+    # torchsummary.summary(model, (3, 128, 128))
+    trainer = pl.Trainer(max_epochs=50, gpus=1, default_root_dir="..")
+    # trainer.fit(model, train_dataloader)
 
-    # train_dataloader, test_dataloader = load_celeba(batch_size=4)
-    # input_imgs, _ = next(iter(test_dataloader))
-    # model = CelebAAutoencoder.load_from_checkpoint("../lightning_logs/version_16/checkpoints/epoch=49-step=63350.ckpt")
-    # model.eval()
-    # reconst_imgs = model(input_imgs)
+    train_dataloader, valid_dataloader, test_dataloader = load_celeba(batch_size=4)
+    model = CelebAAutoencoderNew.load_from_checkpoint("../lightning_logs/version_32/checkpoints/epoch=49-step=58600.ckpt")
+    train_dataloader, valid_dataloader, test_dataloader = load_celeba(batch_size=4)
+    input_imgs, _ = next(iter(test_dataloader))
+    model.eval()
+    reconst_imgs, z = model(input_imgs)
 
     # input_imgs   = input_imgs.reshape(3, 128, 128).detach()
     # reconst_imgs = reconst_imgs.reshape(3, 128, 128).detach()
@@ -516,7 +687,7 @@ if __name__ == "__main__":
     
     # plt.savefig(f"../img/celeba_reconstruction1.png", dpi=1000)
     # plt.show()
-    # visualize_cifar_reconstructions(input_imgs, reconst_imgs, file_name="celeba_ae_8mse_2bce_recons")
+    visualize_cifar_reconstructions(input_imgs, reconst_imgs, file_name="celeba_ae_mse_recon")
 
     """
     Testing CIFAR autoencoder
@@ -597,26 +768,26 @@ if __name__ == "__main__":
     """
     Testing FashionMNIST autoencoder
     """
-    train_dataloader, valid_dataloader, test_dataloader = load_fashion_mnist(
-        root="/home/sweta/scratch/datasets/FashionMNIST/", batch_size=128
-    )
-    model = ANNAutoencoder()
-    trainer = pl.Trainer(max_epochs=20, gpus=1, default_root_dir="..")
-    # trainer.fit(model, train_dataloader, valid_dataloader)    
+    # train_dataloader, valid_dataloader, test_dataloader = load_fashion_mnist(
+    #     root="/home/sweta/scratch/datasets/FashionMNIST/", batch_size=128
+    # )
+    # model = ANNAutoencoder()
+    # trainer = pl.Trainer(max_epochs=20, gpus=1, default_root_dir="..")
+    # # trainer.fit(model, train_dataloader, valid_dataloader)    
 
-    train_dataloader, valid_dataloader, test_dataloader = load_fashion_mnist(
-        root="/home/sweta/scratch/datasets/FashionMNIST/", batch_size=1
-    )
-    model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/fmnist_ae_mse/checkpoints/epoch=19-step=8580.ckpt")
-    model.eval()
+    # train_dataloader, valid_dataloader, test_dataloader = load_fashion_mnist(
+    #     root="/home/sweta/scratch/datasets/FashionMNIST/", batch_size=1
+    # )
+    # model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/fmnist_ae_mse/checkpoints/epoch=19-step=8580.ckpt")
+    # model.eval()
     
-    images, labels = next(iter(train_dataloader))
-    recons, _      = model(images)
-    images = images.reshape(28, 28).cpu().detach().numpy()
-    recons = recons.reshape(28, 28).cpu().detach().numpy()
+    # images, labels = next(iter(train_dataloader))
+    # recons, _      = model(images)
+    # images = images.reshape(28, 28).cpu().detach().numpy()
+    # recons = recons.reshape(28, 28).cpu().detach().numpy()
 
-    plt.gray()
-    fig, axis = plt.subplots(2)
-    axis[0].imshow(images)
-    axis[1].imshow(recons)
-    plt.savefig(f"../plots/fmnist_enc_dec.png", dpi=600)
+    # plt.gray()
+    # fig, axis = plt.subplots(2)
+    # axis[0].imshow(images)
+    # axis[1].imshow(recons)
+    # plt.savefig(f"../plots/fmnist_enc_dec.png", dpi=600)
