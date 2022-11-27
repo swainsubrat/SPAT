@@ -8,7 +8,7 @@ from dataset import CelebaDataset
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
-def load_mnist(batch_size: int=64, root: str='/home/sweta/scratch/datasets/MNIST/'):
+def load_mnist(batch_size: int=64, root: str='~/scratch/datasets/MNIST/'):
     """
     Load MNIST data
     """
@@ -26,14 +26,14 @@ def load_mnist(batch_size: int=64, root: str='/home/sweta/scratch/datasets/MNIST
 
     return train_dataloader, valid_dataloader, test_dataloader
 
-def labelwise_load_mnist(batch_size: int=64, root: str='/home/sweta/scratch/datasets/MNIST/', label=7):
+def labelwise_load_mnist(batch_size: int=64, root: str='~/scratch/datasets/MNIST/', label=7):
     """
     Load MNIST data
     """
     t = transforms.Compose([
-                       transforms.ToTensor(),
-                       transforms.Lambda(lambda x: torch.flatten(x))]
-                       )
+                    transforms.ToTensor(),
+                    transforms.Lambda(lambda x: torch.flatten(x))]
+                    )
     train_data = datasets.MNIST(root=root, train=True, download=True, transform=t)
     test_data  = datasets.MNIST(root=root, train=False, download=True, transform=t)
 
@@ -46,7 +46,7 @@ def labelwise_load_mnist(batch_size: int=64, root: str='/home/sweta/scratch/data
 
     return train_dataloader, test_dataloader
 
-def load_cifar(batch_size: int=64, root: str="./data/"):
+def load_cifar(batch_size: int=64, root: str="~/scratch/datasets/CIFAR10/"):
     """
     Load CIFAR-10 data
     """
@@ -72,7 +72,7 @@ def load_cifar(batch_size: int=64, root: str="./data/"):
 
     return train_dataloader, valid_dataloader, test_dataloader
 
-def load_celeba(batch_size: int=64, root: str="/home/sweta/scratch/datasets/CelebA/"):
+def load_celeba(batch_size: int=64, root: str="~/scratch/datasets/CelebA/"):
     """
     Load CelebA dataset
     """
@@ -93,17 +93,18 @@ def load_celeba(batch_size: int=64, root: str="/home/sweta/scratch/datasets/Cele
     train_data = CelebaDataset(txt_path=root+'celeba_gender_attr_train.txt',
                                         img_dir=root+'img_align_celeba/',
                                         transform=transform_train)
+    train_data, valid_data = random_split(train_data, [150000, 12079])
     test_data = CelebaDataset(txt_path=root+'celeba_gender_attr_test.txt',
                                     img_dir=root+'img_align_celeba/',
                                     transform=transform_test)
 
     train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=4)
-    # valid_dataloader = DataLoader(valid_data, batch_size=batch_size, shuffle=True, num_workers=4)
+    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, shuffle=True, num_workers=4)
     test_dataloader  = DataLoader(test_data, batch_size=batch_size, num_workers=4)
 
-    return train_dataloader, test_dataloader
+    return train_dataloader, valid_dataloader, test_dataloader
 
-def load_fashion_mnist(batch_size: int=64, root: str="/home/sweta/scratch/datasets/FashionMNIST/"):
+def load_fashion_mnist(batch_size: int=64, root: str="~/scratch/datasets/FashionMNIST/"):
     """
     Load Fashion-MNIST data
     """
@@ -121,6 +122,12 @@ def load_fashion_mnist(batch_size: int=64, root: str="/home/sweta/scratch/datase
 
     return train_dataloader, valid_dataloader, test_dataloader
 
+DATALOADER_MAPPINGS = {
+    "mnist": load_mnist,
+    "cifar10": load_cifar,
+    "celeba": load_celeba,
+    "fmnist": load_fashion_mnist
+}
 
 if __name__ == "__main__":
     train_dataloader, test_dataloader = load_celeba()

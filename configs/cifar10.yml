@@ -1,0 +1,21 @@
+model: CIFAR10
+
+paths:
+  root: /home/sweta/scratch/datasets/CIFAR10/
+  # ckpt: /home/sweta/scratch/SPAA/lightning_logs/
+
+classifiers:
+  cifar10_cnn_1: ./lightning_logs/cifar10_classifier/checkpoints/epoch=49-step=35150.ckpt
+autoencoders:
+  ann_128: ./lightning_logs/cifar10_ae_mse/checkpoints/epoch=199-step=35000.ckpt
+
+miscs:
+  nb_classes: 10
+  min_pixel_value: 0.0
+  max_pixel_value: 1.0
+  reshape:
+    - 32
+    - 32
+  input_shape:
+    - 32
+    - 32

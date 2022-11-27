@@ -19,7 +19,7 @@ from typing import Tuple, Callable
 from dataloader import load_mnist
 from models.classifier import MNISTClassifier, CIFAR10Classifier
 from models.autoencoder import ANNAutoencoder, BaseAutoEncoder, CIFAR10Autoencoder
-from attack_new import make_hybrid_model, get_embeddings
+from attacks.attack_new import make_hybrid_model, get_embeddings
 
 # first load the config
 with open("./configs/mnist.yml", "r") as f:

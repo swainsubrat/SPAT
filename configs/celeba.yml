@@ -2,16 +2,20 @@ model: CelebA
 
 paths:
   root: /home/sweta/scratch/datasets/CelebA/
-  image-dir: ./img/CelebA/
-  autoencoder-path: ./lightning_logs/celeba_ae_mse/checkpoints/epoch=49-step=31700.ckpt
-  classifier-path: ./lightning_logs/celeba_classifier/checkpoints/epoch=9-step=202600.ckpt
 
-specs:
-  bounds:
-    - -1
-    - 15
-  plot: False
-  batch_size: 100
+classifiers:
+  celeba_cnn_1: ./lightning_logs/celeba_classifier/checkpoints/epoch=4-step=11720.ckpt
+
+autoencoders:
+  cnn_128: ./lightning_logs/celeba_ae_mse/checkpoints/epoch=49-step=31700.ckpt
+
+miscs:
+  nb_classes: 2
+  min_pixel_value: 0.0
+  max_pixel_value: 1.0
   reshape:
+    - 128
+    - 128
+  input_shape:
     - 128
     - 128

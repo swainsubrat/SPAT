@@ -181,7 +181,7 @@ class CelebAClassifier(pl.LightningModule):
         self.batch_size = batch_size
         self.criterion = nn.BCELoss()
 
-        self.model = torchvision.models.inception_v3(pretrained=True, aux_logits=self.aux_logits)
+        self.model = torchvision.models.resnet101(pretrained=True)
         if self.aux_logits:
             self.model.AuxLogits.fc = nn.Sequential(nn.Linear(768, 1), nn.Sigmoid())
         self.model.fc = nn.Sequential(nn.Linear(in_features=2048, out_features=1), nn.Sigmoid())
@@ -249,22 +249,20 @@ class CelebAClassifier(pl.LightningModule):
 if __name__ == "__main__":
 
     import os    
-    os.environ["CUDA_VISIBLE_DEVICES"] = "2, 3"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "4, 3"
 
     """
     CIFAR classifier testing
     """
-    # train_dataloader, valid_dataloader, test_dataloader = load_cifar(
-    #     root="/home/sweta/scratch/datasets/CIFAR/"
-    # )
+    # train_dataloader, valid_dataloader, test_dataloader = load_cifar()
 
     # model = CIFAR10Classifier()
-    # trainer = pl.Trainer(max_epochs=50, gpus=1, default_root_dir="..")
+    # trainer = pl.Trainer(max_epochs=50, gpus=1, default_root_dir="..", enable_checkpointing=False)
     # # trainer.fit(model, train_dataloader, valid_dataloader)  
 
-    # model = CIFAR10Classifier.load_from_checkpoint("../lightning_logs/version_10/checkpoints/epoch=49-step=35150.ckpt")
+    # model = CIFAR10Classifier.load_from_checkpoint("../lightning_logs/cifar10_classifier/checkpoints/epoch=49-step=35150.ckpt")
     # model.eval()
-    # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
+    # # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
     # p = trainer.test(model, dataloaders=test_dataloader)
     # print(p)
 
@@ -277,7 +275,7 @@ if __name__ == "__main__":
     # trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..")
     # # trainer.fit(model, train_dataloader)   
 
-    # model = MNISTClassifier.load_from_checkpoint("../lightning_logs/version_6/checkpoints/epoch=9-step=9370.ckpt")
+    # model = MNISTClassifier.load_from_checkpoint("../lightning_logs/mnist_classifier/checkpoints/epoch=9-step=9370.ckpt")
     # model.eval()
     # # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
     # # print(len(preds), preds[0].shape)
@@ -291,9 +289,9 @@ if __name__ == "__main__":
 
     # model = MNISTClassifier()
     # trainer = pl.Trainer(max_epochs=50, gpus=1, default_root_dir="..")
-    # # trainer.fit(model, train_dataloader, valid_dataloader)   
+    # # trainer.fit(model, train_dataloader, valid_dataloader)
 
-    # model = MNISTClassifier.load_from_checkpoint("../lightning_logs/version_13/checkpoints/epoch=49-step=42950.ckpt")
+    # model = MNISTClassifier.load_from_checkpoint("../lightning_logs/fmnist_classifier/checkpoints/epoch=49-step=42950.ckpt")
     # model.eval()
     # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
     # print(len(preds), preds[0].shape)
@@ -303,14 +301,14 @@ if __name__ == "__main__":
     """
     CelebA classifier testing
     """
-    train_dataloader, test_dataloader = load_celeba(batch_size=32)
+    train_dataloader, valid_dataloader, test_dataloader = load_celeba(batch_size=32)
 
     model = CelebAClassifier()
     trainer = pl.Trainer(max_epochs=10, gpus=2, default_root_dir="..")
-    trainer.fit(model, train_dataloader)   
+    # trainer.fit(model, train_dataloader)
 
-    # model = CelebAClassifier.load_from_checkpoint("../lightning_logs/celeba_classifier/checkpoints/epoch=9-step=202600.ckpt")
-    # model.eval()
+    model = CelebAClassifier.load_from_checkpoint("../lightning_logs/celeba_classifier/checkpoints/epoch=4-step=11720.ckpt")
+    model.eval()
     # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
     # print(len(preds), preds[0].shape)
     p = trainer.test(model, dataloaders=test_dataloader, verbose=True)

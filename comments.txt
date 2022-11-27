@@ -1,0 +1,11 @@
+1. Similarity (Should be better than the original method)
+2. Robust Accuracy (It is higher than original method)
+3. Response against existing defences
+4. Show the drawabacks of original methods against the on-manifold.
+5. Show statisticial measurement of the original adversarial noise vs on-manifold adversarial noise.
+6. Targeted on-manifold attack [*]
+7. Class-invariance solution for real-world images [*]
+
+1. LPIPS vs Robust Accuracy
+2. Robust accuracy of their scheme(david stutz)
+3. Class invariance is better captured in my scheme
