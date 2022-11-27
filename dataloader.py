@@ -8,7 +8,7 @@ from dataset import CelebaDataset
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 
-def load_mnist(batch_size: int=64, root: str='/home/sweta/scratch/datasets/MNIST/'):
+def load_mnist(batch_size: int=64, root: str='~/scratch/datasets/MNIST/'):
     """
     Load MNIST data
     """
@@ -26,7 +26,7 @@ def load_mnist(batch_size: int=64, root: str='/home/sweta/scratch/datasets/MNIST
 
     return train_dataloader, valid_dataloader, test_dataloader
 
-def labelwise_load_mnist(batch_size: int=64, root: str='/home/sweta/scratch/datasets/MNIST/', label=7):
+def labelwise_load_mnist(batch_size: int=64, root: str='~/scratch/datasets/MNIST/', label=7):
     """
     Load MNIST data
     """
@@ -46,7 +46,7 @@ def labelwise_load_mnist(batch_size: int=64, root: str='/home/sweta/scratch/data
 
     return train_dataloader, test_dataloader
 
-def load_cifar(batch_size: int=64, root: str="/home/sweta/scratch/datasets/CIFAR10/"):
+def load_cifar(batch_size: int=64, root: str="~/scratch/datasets/CIFAR10/"):
     """
     Load CIFAR-10 data
     """
@@ -72,7 +72,7 @@ def load_cifar(batch_size: int=64, root: str="/home/sweta/scratch/datasets/CIFAR
 
     return train_dataloader, valid_dataloader, test_dataloader
 
-def load_celeba(batch_size: int=64, root: str="/home/sweta/scratch/datasets/CelebA/"):
+def load_celeba(batch_size: int=64, root: str="~/scratch/datasets/CelebA/"):
     """
     Load CelebA dataset
     """
@@ -104,7 +104,7 @@ def load_celeba(batch_size: int=64, root: str="/home/sweta/scratch/datasets/Cele
 
     return train_dataloader, valid_dataloader, test_dataloader
 
-def load_fashion_mnist(batch_size: int=64, root: str="/home/sweta/scratch/datasets/FashionMNIST/"):
+def load_fashion_mnist(batch_size: int=64, root: str="~/scratch/datasets/FashionMNIST/"):
     """
     Load Fashion-MNIST data
     """

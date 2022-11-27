@@ -625,25 +625,24 @@ class CelebAAutoencoderNew(BaseAutoEncoder):
     def training_step(self, batch, batch_idx):
         x, _ = batch
         x_hat, _ = self(x)
-        loss_bce = F.binary_cross_entropy_with_logits(x, x_hat, reduction="none")
-        loss_mse = F.mse_loss(x, x_hat, reduction="none")
-        loss = (0 * loss_bce) + (1.0 * loss_mse)
+        # loss_bce = F.binary_cross_entropy_with_logits(x, x_hat, reduction="none")
+        loss = F.mse_loss(x, x_hat, reduction="none")
+        # loss = (0 * loss_bce) + (1.0 * loss_mse)
         loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
         self.log("train_loss", loss)
 
         return loss
     
-    # def validation_step(self, batch, batch_idx):
-    #     x, _ = batch
-    #     x_hat, _ = self(x)
-    #     loss = F.mse_loss(x, x_hat, reduction="none")
-    #     loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
-    #     # if batch_idx == 1: print(loss);
-    #     self.log("valid_loss", loss)
+    def validation_step(self, batch, batch_idx):
+        x, _ = batch
+        x_hat, _ = self(x)
+        loss = F.mse_loss(x, x_hat, reduction="none")
+        loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
+        self.log("valid_loss", loss)
     
     def predict_step(self, batch, batch_idx):
         x, _ = batch
-        
+
         return self(x)
 
     def configure_optimizers(self):
@@ -661,18 +660,17 @@ if __name__ == "__main__":
     Testing CelebA autoencoder
     """
     import os
-    import torchsummary
+    # import torchsummary
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "5"
     train_dataloader, valid_dataloader, test_dataloader = load_celeba(batch_size=64)
     
     model = CelebAAutoencoderNew(lr=1e-5)
     # torchsummary.summary(model, (3, 128, 128))
-    trainer = pl.Trainer(max_epochs=50, gpus=1, default_root_dir="..")
-    # trainer.fit(model, train_dataloader)
+    trainer = pl.Trainer(max_epochs=20, accelerator="mps", devices="auto", default_root_dir="..")
+    trainer.fit(model, train_dataloader, valid_dataloader)
 
-    train_dataloader, valid_dataloader, test_dataloader = load_celeba(batch_size=4)
-    model = CelebAAutoencoderNew.load_from_checkpoint("../lightning_logs/version_32/checkpoints/epoch=49-step=58600.ckpt")
+    # model = CelebAAutoencoderNew.load_from_checkpoint("../lightning_logs/version_32/checkpoints/epoch=49-step=58600.ckpt")
     train_dataloader, valid_dataloader, test_dataloader = load_celeba(batch_size=4)
     input_imgs, _ = next(iter(test_dataloader))
     model.eval()
