@@ -7,8 +7,9 @@ sys.path.append("..")
 
 import torch
 import torchvision
+from typing import Any, Callable
 
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps")
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,8 +18,11 @@ import plotly.express as px
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
+
+from torchmetrics.functional import accuracy
 from sklearn.manifold import TSNE
 from torch import nn
+from torchviz import make_dot
 
 from dataloader import load_celeba, load_cifar, load_fashion_mnist, load_mnist
 from utils import visualize_cifar_reconstructions
@@ -69,10 +73,13 @@ class up(nn.Module):
 class MaskedLinear(nn.Linear):
     def __init__(self, *args, mask, **kwargs):
         super().__init__(*args, **kwargs)
-        self.mask = mask.to(device)
+        self.mask = mask
+        self.sigmoid = nn.Sigmoid()
+        self.b = torch.zeros(self.bias.shape).to(device)
 
     def forward(self, input):
-        out = F.linear(input*self.mask, self.weight, self.bias)
+        out = F.linear(input, self.mask, self.b)
+        out = self.sigmoid(out)
 
         return out
 
@@ -135,6 +142,75 @@ class BaseAutoEncoder(pl.LightningModule):
 class ANNAutoencoder(BaseAutoEncoder):
     """
     This is an implementation of the autoencoder using ANN
+    """
+    def __init__(self,
+                input_dim: int=784,
+                latent_dim: int=128,
+                activation_fn: nn.modules.activation=nn.ReLU) -> None:
+        """
+        Args:
+            input_dim (int): Dimension of the input to the autoencoder
+            latent_dim (int): Dimension of the latent dimension
+            activation_fn (nn.modules.activation): Activation function 
+        """
+        self.save_hyperparameters()
+        self.input_dim     = input_dim
+        self.latent_dim    = latent_dim
+        self.activation_fn = activation_fn
+        super().__init__()
+
+    def define_encoder(self) -> None:
+        self.encoder = nn.Sequential(
+            nn.Linear(self.input_dim, 512),
+            self.activation_fn(),
+            nn.Linear(512, 264),
+            self.activation_fn(),
+            nn.Linear(264, self.latent_dim),
+            # self.activation_fn()
+        )
+
+    def define_decoder(self) -> None:
+        self.decoder = nn.Sequential(
+            nn.Linear(self.latent_dim, 264),
+            self.activation_fn(),
+            nn.Linear(264, 512),
+            self.activation_fn(),
+            nn.Linear(512, 784),
+            nn.Sigmoid() # for making value between 0 to 1
+        )
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        x = x.view(x.size(0), -1)
+        x_hat, _ = self(x)
+        loss = F.mse_loss(x_hat, x, reduction="none").sum(dim=[1]).mean(dim=[0])
+        self.log("train_loss", loss, on_step=True, on_epoch=True,\
+                prog_bar=True, logger=True)
+
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        x = x.view(x.size(0), -1)
+        x_hat, _ = self(x)
+        loss = F.mse_loss(x, x_hat, reduction="none").sum(dim=[1]).mean(dim=[0])
+        self.log("valid_loss", loss)
+
+    def predict_step(self, batch, batch_idx):
+        x, y = batch
+
+        return self(x)
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=20, min_lr=5e-5)
+        
+        return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "valid_loss"}
+
+
+class FashionMNISTAutoencoder(BaseAutoEncoder):
+    """
+    This is an implementation of the autoencoder for Fashion MNIST
     """
     def __init__(self,
                 input_dim: int=784,
@@ -208,40 +284,40 @@ class ClassConstrainedANNAutoencoder(ANNAutoencoder):
     """
     def __init__(self,
                 input_dim: int=784,
-                latent_dim: int=10,
-                activation_fn: nn.modules.activation=nn.Mish) -> None:
+                latent_dim: int=100,
+                n_classes: int=10,
+                activation_fn: nn.modules.activation=nn.ReLU) -> None:
         """
         Args:
             input_dim (int): Dimension of the input to the autoencoder
             latent_dim (int): Dimension of the latent dimension
+            n_classes (int): Number of classes
             activation_fn (nn.modules.activation): Activation function 
         """
         self.save_hyperparameters()
         super().__init__(input_dim, latent_dim, activation_fn)
 
-        self.mask = torch.block_diag(*[torch.ones(10,1),]*10)
-        self.linear = MaskedLinear(100, 10, mask=self.mask).to(device)
-        self.recon_loss = nn.BCELoss()
-        self.class_loss = nn.CrossEntropyLoss()
+        assert latent_dim % n_classes == 0, "latent dimension should be divisible by number of classes"
+
+        self.mask = torch.block_diag(*[torch.ones(1, latent_dim // n_classes),] * n_classes).to(device)
+        self.linear = MaskedLinear(latent_dim, n_classes, mask=self.mask).to(device)
+        # self.recon_loss = nn.BCELoss()
+        # self.class_loss = nn.CrossEntropyLoss()
 
     def define_encoder(self) -> None:
         self.encoder = nn.Sequential(
             nn.Linear(self.input_dim, 512),
             self.activation_fn(),
-            nn.Linear(512, 264),
+            nn.Linear(512, 256),
             self.activation_fn(),
-            nn.Linear(264, 128),
-            self.activation_fn(),
-            nn.Linear(128, self.latent_dim)
+            nn.Linear(256, self.latent_dim)
         )
 
     def define_decoder(self) -> None:
         self.decoder = nn.Sequential(
-            nn.Linear(self.latent_dim, 128),
+            nn.Linear(self.latent_dim, 256),
             self.activation_fn(),
-            nn.Linear(128, 264),
-            self.activation_fn(),
-            nn.Linear(264, 512),
+            nn.Linear(256, 512),
             self.activation_fn(),
             nn.Linear(512, 784),
             nn.Sigmoid() # for making value between 0 to 1
@@ -249,16 +325,19 @@ class ClassConstrainedANNAutoencoder(ANNAutoencoder):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         z = self.encoder(x)
-        # preds = self.linear(z)
+        
+        # dummy = torch.Tensor(([1] * 10) + ([0] * 90)).reshape(-1, 100).to(device)
+        preds = self.linear(z)
+
         x_hat = self.decoder(z)
 
-        return x_hat, z
+        return x_hat, z, preds
 
     def training_step(self, batch, batch_idx):
         x, y = batch
         x = x.view(x.size(0), -1)
-        x_hat, z = self(x)
-        class_loss = F.cross_entropy(z, y)
+        x_hat, _, preds = self(x)
+        class_loss = F.cross_entropy(preds, y)
         recon_loss = F.mse_loss(x, x_hat)
         loss = class_loss + recon_loss
 
@@ -271,16 +350,25 @@ class ClassConstrainedANNAutoencoder(ANNAutoencoder):
 
         return loss
 
-
     def validation_step(self, batch, batch_idx):
         x, y = batch
         x = x.view(x.size(0), -1)
-        x_hat, z = self(x)
-        class_loss = self.class_loss(z, y)
-        recon_loss = self.recon_loss(x, x_hat)
+        x_hat, _, preds = self(x)
+        class_loss = F.cross_entropy(preds, y)
+        recon_loss = F.mse_loss(x, x_hat)
         loss = class_loss + recon_loss
 
         self.log("valid_loss", loss)
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        _, _, logits = self(x)
+        loss = F.cross_entropy(logits, y)
+        preds = torch.argmax(logits, dim=1)
+        acc = accuracy(preds, y)
+
+        self.log("test_loss", loss, prog_bar=True)
+        self.log("test_acc", acc, prog_bar=True)
 
 
 class CIFAR10Autoencoder(BaseAutoEncoder):
@@ -292,7 +380,9 @@ class CIFAR10Autoencoder(BaseAutoEncoder):
                 latent_dim: int=256,
                 num_input_channels: int=3,
                 base_channel_size: int=32,
-                activation_fn: nn.modules.activation=nn.GELU) -> None:
+                activation_fn: nn.modules.activation=nn.GELU,
+                perceptual_loss: bool=False,
+                loss: Callable=None) -> None:
         """
         Args:
             input_dim (int): Dimension of the input to the autoencoder
@@ -309,7 +399,14 @@ class CIFAR10Autoencoder(BaseAutoEncoder):
         self.num_input_channels = num_input_channels
         self.c_hid         = base_channel_size
         self.activation_fn = activation_fn
+
+        if perceptual_loss:
+            if not loss:
+                raise AttributeError("Pass a callable loss to the attribute \
+                                      loss when perceptual loss is True")
         super().__init__()
+        self.perceptual_loss = perceptual_loss
+        self.loss          = loss
         # self.linear        = nn.Sequential(
         #     nn.Linear(self.latent_dim, 2 * 16 * self.c_hid),
         #     self.activation_fn()
@@ -363,9 +460,11 @@ class CIFAR10Autoencoder(BaseAutoEncoder):
     def training_step(self, batch, batch_idx):
         x, _ = batch
         x_hat, _ = self(x)
-        loss = F.mse_loss(x, x_hat, reduction="none")
+        if self.perceptual_loss:
+            loss = self.loss(x, x_hat)
+        else:
+            loss = F.mse_loss(x, x_hat, reduction="none")
         loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
-        # if batch_idx == 1: print(loss);
         self.log("train_loss", loss)
 
         return loss
@@ -373,9 +472,11 @@ class CIFAR10Autoencoder(BaseAutoEncoder):
     def validation_step(self, batch, batch_idx):
         x, _ = batch
         x_hat, _ = self(x)
-        loss = F.mse_loss(x, x_hat, reduction="none")
+        if self.perceptual_loss:
+            loss = self.loss(x, x_hat)
+        else:
+            loss = F.mse_loss(x, x_hat, reduction="none")
         loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
-        # if batch_idx == 1: print(loss);
         self.log("valid_loss", loss)
     
     def predict_step(self, batch, batch_idx):
@@ -660,32 +761,60 @@ if __name__ == "__main__":
     Testing CelebA autoencoder
     """
     import os
+    def plot_recons(images, reshape):
+        plt.figure(figsize=(20, 6))
+        images = torch.Tensor(images).reshape(reshape)
+        print(images.shape)
+        # images = images.cpu().detach().numpy()
+        grid = torchvision.utils.make_grid(images, nrow=10, normalize=False, range=(-1,1), )
+        print(grid.shape)
+        grid = grid.permute(1, 2, 0)
+        grid = grid.cpu().detach().numpy()
+        print(grid.shape)
+        # print(grid[0] == grid[1])
+        plt.imshow(grid)
+        plt.axis('off')
+        plt.show()
+    
+    def plot_recons_with_latent_codes(x, x_hat, z):
+        plt.subplot(1,3,1)
+        plt.title("Original")
+        plt.imshow(x.reshape((28, 28)))
+
+        plt.subplot(1,3,2)
+        plt.title("Code")
+        plt.imshow(z.reshape([z.shape[-1]//2,-1]).cpu().detach().numpy())
+
+        plt.subplot(1,3,3)
+        plt.title("Reconstructed")
+        plt.imshow(x_hat.reshape((28, 28)))
+        plt.show()
     # import torchsummary
 
     # os.environ["CUDA_VISIBLE_DEVICES"] = "5"
-    train_dataloader, valid_dataloader, test_dataloader = load_celeba(batch_size=64)
+    # train_dataloader, valid_dataloader, test_dataloader = load_celeba(batch_size=64)
     
-    model = CelebAAutoencoderNew(lr=1e-5)
-    # torchsummary.summary(model, (3, 128, 128))
-    trainer = pl.Trainer(max_epochs=20, accelerator="mps", devices="auto", default_root_dir="..")
-    trainer.fit(model, train_dataloader, valid_dataloader)
+    # model = CelebAAutoencoderNew(lr=1e-5)
+    # # torchsummary.summary(model, (3, 128, 128))
+    # trainer = pl.Trainer(max_epochs=20, accelerator="mps", devices="auto", default_root_dir="..")
+    # trainer.fit(model, train_dataloader, valid_dataloader)
 
-    # model = CelebAAutoencoderNew.load_from_checkpoint("../lightning_logs/version_32/checkpoints/epoch=49-step=58600.ckpt")
-    train_dataloader, valid_dataloader, test_dataloader = load_celeba(batch_size=4)
-    input_imgs, _ = next(iter(test_dataloader))
-    model.eval()
-    reconst_imgs, z = model(input_imgs)
+    # # model = CelebAAutoencoderNew.load_from_checkpoint("../lightning_logs/version_32/checkpoints/epoch=49-step=58600.ckpt")
+    # train_dataloader, valid_dataloader, test_dataloader = load_celeba(batch_size=4)
+    # input_imgs, _ = next(iter(test_dataloader))
+    # model.eval()
+    # reconst_imgs, z = model(input_imgs)
 
-    # input_imgs   = input_imgs.reshape(3, 128, 128).detach()
-    # reconst_imgs = reconst_imgs.reshape(3, 128, 128).detach()
-    # fig, axis = plt.subplots(1,2)
+    # # input_imgs   = input_imgs.reshape(3, 128, 128).detach()
+    # # reconst_imgs = reconst_imgs.reshape(3, 128, 128).detach()
+    # # fig, axis = plt.subplots(1,2)
 
-    # axis[0].imshow(np.transpose(input_imgs, (1, 2, 0)))
-    # axis[1].imshow(np.transpose(reconst_imgs, (1, 2, 0)))
+    # # axis[0].imshow(np.transpose(input_imgs, (1, 2, 0)))
+    # # axis[1].imshow(np.transpose(reconst_imgs, (1, 2, 0)))
     
-    # plt.savefig(f"../img/celeba_reconstruction1.png", dpi=1000)
-    # plt.show()
-    visualize_cifar_reconstructions(input_imgs, reconst_imgs, file_name="celeba_ae_mse_recon")
+    # # plt.savefig(f"../img/celeba_reconstruction1.png", dpi=1000)
+    # # plt.show()
+    # visualize_cifar_reconstructions(input_imgs, reconst_imgs, file_name="celeba_ae_mse_recon")
 
     """
     Testing CIFAR autoencoder
@@ -716,20 +845,55 @@ if __name__ == "__main__":
     Testing MNIST autoencoder
     """
     # train_dataloader, valid_dataloader, test_dataloader = load_mnist(
-    #     root="/home/sweta/scratch/datasets/MNIST/", batch_size=128
+    #     root="~/scratch/datasets/MNIST/", batch_size=128
     # )
     # model = ANNAutoencoder()
-    # trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..")
-    # # trainer.fit(model, train_dataloader, valid_dataloader)    
+    # trainer = pl.Trainer(max_epochs=20, accelerator="mps", default_root_dir="..")
+    # trainer.fit(model, train_dataloader, valid_dataloader)    
 
-    # model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/mnist_ae_mse/checkpoints/epoch=9-step=9370.ckpt")
+    # # model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/mnist_ae_mse/checkpoints/epoch=9-step=9370.ckpt")
     # model.eval()
-    # preds = trainer.predict(model, dataloaders=test_dataloader, return_predictions=True)
-    # print(len(preds))
+
+    # # Reconstruct
+    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(
+    #     root="~/scratch/datasets/MNIST/", batch_size=10
+    # )
+    # x, _ = next(iter(test_dataloader))
+    # x_hat, _ = model(x)
+    # images = torch.cat((x, x_hat), 0)
+    # plot_recons(images=images, reshape=(-1, 1, 28, 28))
 
     """
     Testing class-constrained MNIST autoencoder
     """
+    train_dataloader, valid_dataloader, test_dataloader = load_mnist(
+        root="~/scratch/datasets/MNIST/", batch_size=128
+    )
+    model = ClassConstrainedANNAutoencoder()
+    trainer = pl.Trainer(max_epochs=10, accelerator="mps", default_root_dir="..")
+    # trainer.fit(model, train_dataloader, valid_dataloader)    
+
+    model = ClassConstrainedANNAutoencoder.load_from_checkpoint("../lightning_logs/version_39/checkpoints/checkpoint.ckpt")
+    model.eval()
+
+    # Reconstruct
+    train_dataloader, valid_dataloader, test_dataloader = load_mnist(
+        root="~/scratch/datasets/MNIST/", batch_size=10
+    )
+    x, y = next(iter(test_dataloader))
+    x = x.to(device)
+    model = model.to(device)
+    x_hat, z, preds = model(x)
+    # make_dot(preds, params=dict(list(model.named_parameters()))).render("torchviz", format="png")
+    # p = trainer.test(model, dataloaders=test_dataloader, verbose=True)
+    # print(p)
+    x = x.cpu().detach().numpy()
+    x_hat = x_hat.cpu().detach().numpy()
+    # images = np.concatenate([x, x_hat], 0)
+    # plot_recons(images=images, reshape=(-1, 1, 28, 28))
+    for image, code, recon in zip(x, z, x_hat):
+        plot_recons_with_latent_codes(image, recon, code)
+
     # train_dataloader, valid_dataloader, test_dataloader = load_mnist(batch_size=128)
     # model = ClassConstrainedANNAutoencoder()
     # trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..", checkpoint_callback=True, logger=True)
@@ -739,29 +903,30 @@ if __name__ == "__main__":
     # model = model.to(device)
     # model.eval()
 
-    # _, _, test_dataloader = load_mnist(batch_size=1)
-    # encoded_samples = []
-    # for i, (image, label) in enumerate(test_dataloader):
-    #     image = image.to(device)
-    #     label = label.item()
+    _, _, test_dataloader = load_mnist(batch_size=1)
+    encoded_samples = []
+    for i, (image, label) in enumerate(test_dataloader):
+        image = image.to(device)
+        label = label.item()
 
-    #     with torch.no_grad():
-    #         z = model.get_z(image)
-    #     encoded_img = z.flatten().cpu().numpy()
-    #     encoded_sample = {f"Enc. Variable {i}": enc for i, enc in enumerate(encoded_img)}
-    #     encoded_sample['label'] = label
-    #     encoded_samples.append(encoded_sample)
+        with torch.no_grad():
+            z = model.get_z(image)
+        encoded_img = z.flatten().cpu().numpy()
+        encoded_sample = {f"Enc. Variable {i}": enc for i, enc in enumerate(encoded_img)}
+        encoded_sample['label'] = label
+        encoded_samples.append(encoded_sample)
 
-    # encoded_samples = pd.DataFrame(encoded_samples)
-    # # print(encoded_samples)
-    # tsne = TSNE(n_components=2)
-    # tsne_results = tsne.fit_transform(encoded_samples.drop(['label'],axis=1))
+    encoded_samples = pd.DataFrame(encoded_samples)
+    # print(encoded_samples)
+    tsne = TSNE(n_components=2)
+    tsne_results = tsne.fit_transform(encoded_samples.drop(['label'],axis=1))
 
-    # fig = px.scatter(tsne_results, x=0, y=1,
-    #                 color=encoded_samples.label.astype(str),
-    #                 color_discrete_map={"0":"red", "1":"blue", "2":"yellow", "3":"gray", "4":"brown", "5":"aqua", "6":"maroon", "7":"purple", "8":"teal", "9":"lime"},
-    #                 labels={'0': 'dimension-1', '1': 'dimension-2'})
-    # fig.write_image("../img/tsne_constrained_ae.png")
+    fig = px.scatter(tsne_results, x=0, y=1,
+                    color=encoded_samples.label.astype(str),
+                    color_discrete_map={"0":"red", "1":"blue", "2":"yellow", "3":"gray", "4":"brown", "5":"aqua", "6":"maroon", "7":"purple", "8":"teal", "9":"lime"},
+                    labels={'0': 'dimension-1', '1': 'dimension-2'})
+    # fig.write_image("../img/tsne_cc_extended.png")
+    fig.show()
 
     """
     Testing FashionMNIST autoencoder

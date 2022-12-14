@@ -7,6 +7,8 @@ from dataset import CelebaDataset
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
+def lambda_function(x):
+    return torch.flatten(x)
 
 def load_mnist(batch_size: int=64, root: str='~/scratch/datasets/MNIST/'):
     """
@@ -14,7 +16,7 @@ def load_mnist(batch_size: int=64, root: str='~/scratch/datasets/MNIST/'):
     """
     t = transforms.Compose([
                         transforms.ToTensor(),
-                        transforms.Lambda(lambda x: torch.flatten(x))]
+                        transforms.Lambda(lambda_function)]
                         )
     train = datasets.MNIST(root=root, train=True, download=True, transform=t)
     train_data, valid_data = random_split(train, [55000, 5000])

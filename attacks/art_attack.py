@@ -10,7 +10,7 @@ import torch
 from art.estimators.classification import PyTorchClassifier
 from torch import nn
 
-from attacks import ATTACK_MAPPINGS
+from attacks import ATTACK_MAPPINGS, generate_mask
 from models import MODEL_MAPPINGS
 
 
@@ -78,12 +78,10 @@ def hybridize(x, y, z, config, classifier_model, autoencoder_model):
     )
 
     # Step 5: Evaluate the ART classifier on benign test examples
-    print(type(x[1]), x[1].shape)
     predictions = classifier.predict(x[1])
     accuracy = np.sum(np.argmax(predictions, -1) == y[1])/ len(y[1])
     print("Accuracy on benign test examples: {}%".format(accuracy * 100))
 
-    print(z[1].shape)
     # from torchsummary import summary
     # summary(hybrid_classifier_model, (128, 16, 16))
     predictions = hybrid_classifier.predict(z[1])
@@ -92,8 +90,9 @@ def hybridize(x, y, z, config, classifier_model, autoencoder_model):
 
     return classifier, hybrid_classifier, accuracy
 
-def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, autoencoder_model):
+def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, autoencoder_model, kwargs):
     result = {}
+    # autoencoder_model = autoencoder_model.to(config["device"])
     if attack_name == "all":
         del ATTACK_MAPPINGS["all"]
         for name, attack_name in ATTACK_MAPPINGS.items():
@@ -140,7 +139,7 @@ def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, 
     else:
         name = attack_name.__name__
         result[name] = {}
-        attack = attack_name(classifier)
+        attack = attack_name(classifier, **kwargs)
         x_test_adv_np = attack.generate(x=x[1])
         predictions = classifier.predict(x_test_adv_np)
         accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
@@ -152,31 +151,43 @@ def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, 
         result[name]["x_test_noise"] = x_test_noise
         print("Accuracy on adversarial test examples: {}%".format(accuracy * 100))
 
-        modified_attack = attack_name(hybrid_classifier)
-        z_test_adv_np = modified_attack.generate(x=z[1])
+        # ---------------- Modified Attack ---------------- #
+        modified_attack = attack_name(hybrid_classifier, **kwargs)
+        z_test_adv_np = modified_attack.generate(x=z[1], mask=generate_mask(
+            latent_dim=int(config["latent_shape"]),
+            n_classes=config["miscs"]["nb_classes"],
+            labels=y[1]))
 
-        # Step 7: Evaluate the ART classifier on adversarial test examples
-        predictions = hybrid_classifier.predict(z_test_adv_np)
-        accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
-        result[name]["modified"] = accuracy
-        result[name]["z_test_adv_np"] = z_test_adv_np
-        xx_test_adv = autoencoder_model.decoder(torch.Tensor(z_test_adv_np).to(config["device"]))
-        xx_test     = autoencoder_model.decoder(torch.Tensor(z[1]).to(config["device"]))
+        xx_test_adv = autoencoder_model.decoder(torch.Tensor(z_test_adv_np))
+        x_hat       = autoencoder_model.decoder(torch.Tensor(z[1]))
 
         # calculate noise
-        xx_test_noise = xx_test_adv - xx_test
+        xx_test_noise  = xx_test_adv - x_hat
+        xx_test_adv_np    = x[1] + xx_test_noise.cpu().detach().numpy()
+
+        predictions = classifier.predict(xx_test_adv_np)
+        accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
+         
+        # Step 7: Evaluate the ART classifier on adversarial test examples
+        predictions = hybrid_classifier.predict(z_test_adv_np)
+        x_hat_adv_accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
+        result[name]["modified"] = accuracy
+        result[name]["x_hat_adv_accuracy"] = x_hat_adv_accuracy
+        result[name]["z_test_adv_np"] = z_test_adv_np
+        
         result[name]["xx_test_noise"] = xx_test_noise.cpu().detach().numpy()
-        result[name]["xx_test_adv_np"] = xx_test_adv.cpu().detach().numpy()
+        result[name]["xx_test_adv_np"] = xx_test_adv_np
+        print("Accuracy on adversarial test examples(Reconstruced X_adv): {}%".format(x_hat_adv_accuracy * 100))
         print("Accuracy on adversarial test examples(Modified): {}%".format(accuracy * 100))
 
-        hybrid_noise = result[name]["xx_test_noise"] + 0.1 * x_test_noise
-        hybrid_x_np = x[1] + hybrid_noise
-        result[name]["hybrid_x_np"] = hybrid_x_np
-        result[name]["hybrid_noise"] = hybrid_noise
+        # hybrid_noise = result[name]["xx_test_noise"] + 0.1 * x_test_noise
+        # hybrid_x_np = x[1] + hybrid_noise
+        # result[name]["hybrid_x_np"] = hybrid_x_np
+        # result[name]["hybrid_noise"] = hybrid_noise
 
-        predictions = classifier.predict(hybrid_x_np)
-        accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
-        print("Accuracy on adversarial test examples(Hybrid): {}%".format(accuracy * 100))
-        result[name]["hybrid"] = accuracy
+        # predictions = classifier.predict(hybrid_x_np)
+        # accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
+        # print("Accuracy on adversarial test examples(Hybrid): {}%".format(accuracy * 100))
+        # result[name]["hybrid"] = accuracy
 
     return result
