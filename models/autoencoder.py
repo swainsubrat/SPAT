@@ -208,6 +208,102 @@ class ANNAutoencoder(BaseAutoEncoder):
         return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "valid_loss"}
 
 
+class ANNVAEGAN(BaseAutoEncoder):
+    """
+    This is an implementation of the autoencoder using ANN
+    """
+    def __init__(self,
+                 input_dim: int=784,
+                 latent_dim: int=128,
+                 activation_fn: nn.modules.activation=nn.ReLU) -> None:
+        """
+        Args:
+            input_dim (int): Dimension of the input to the autoencoder
+            latent_dim (int): Dimension of the latent dimension
+            activation_fn (nn.modules.activation): Activation function 
+        """
+        self.save_hyperparameters()
+        self.input_dim     = input_dim
+        self.latent_dim    = latent_dim
+        self.activation_fn = activation_fn
+        self.fc_mean       = nn.Linear(256, self.latent_dim)
+        self.fc_logvar     = nn.Linear(256, self.latent_dim)
+        super().__init__()
+
+    def define_encoder(self) -> None:
+        self.encoder = nn.Sequential(
+            nn.Linear(self.input_dim, 512),
+            self.activation_fn(),
+            nn.Linear(512, 264),
+            self.activation_fn(),
+        )
+
+    def define_decoder(self) -> None:
+        self.decoder = nn.Sequential(
+            nn.Linear(self.latent_dim, 264),
+            self.activation_fn(),
+            nn.Linear(264, 512),
+            self.activation_fn(),
+            nn.Linear(512, 784),
+            nn.Sigmoid() # for making value between 0 to 1
+        )
+    
+    def define_discriminator(self) -> None:
+        self.discriminator = nn.Sequential(
+            nn.Linear(784, 512),
+            nn.ReLU(),
+            nn.Linear(512, 100),
+            nn.ReLU(),
+            nn.Linear(100, 10),
+            nn.ReLU(),
+            nn.Linear(10, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+
+        # encoder part
+        out = self.encoder(x)
+        mean = self.fc_mean(out)
+        logvar = self.fc_logvar(out)
+        std = logvar.mul(0.5).exp_()
+
+        # sampling and decoding
+        epsilon = torch.rand_like()
+        z = mean + std * epsilon
+        x_hat = self.decoder(z)
+
+        return x_hat, z
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        x = x.view(x.size(0), -1)
+        x_hat, _ = self(x)
+        loss = F.mse_loss(x_hat, x, reduction="none").sum(dim=[1]).mean(dim=[0])
+        self.log("train_loss", loss, on_step=True, on_epoch=True,\
+                prog_bar=True, logger=True)
+
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        x = x.view(x.size(0), -1)
+        x_hat, _ = self(x)
+        loss = F.mse_loss(x, x_hat, reduction="none").sum(dim=[1]).mean(dim=[0])
+        self.log("valid_loss", loss)
+
+    def predict_step(self, batch, batch_idx):
+        x, y = batch
+
+        return self(x)
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=20, min_lr=5e-5)
+        
+        return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "valid_loss"}
+
+
 class FashionMNISTAutoencoder(BaseAutoEncoder):
     """
     This is an implementation of the autoencoder for Fashion MNIST
