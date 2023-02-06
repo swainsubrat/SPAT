@@ -1,13 +1,14 @@
 model: MNIST
 
-paths:
-  root: /home/sweta/scratch/datasets/MNIST/
+dataset_path: ~/scratch/datasets/MNIST/
 
 classifiers:
   mnist_ann_1: ./lightning_logs/mnist_classifier/checkpoints/epoch=9-step=9370.ckpt
+  mnist_cnn_1: ./lightning_logs/mnist_cnn_classifier/checkpoints/epoch=49-step=42950.ckpt
 autoencoders:
   ann_128: ./lightning_logs/mnist_ae_mse/checkpoints/checkpoint.ckpt
   cc_ann_100: ./lightning_logs/mnist_ccae_mse/checkpoints/checkpoint.ckpt
+  cnn_32: ./lightning_logs/mnist_cnn_ae/checkpoints/epoch=19-step=8580.ckpt
 
 miscs:
   nb_classes: 10

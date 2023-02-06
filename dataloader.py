@@ -53,8 +53,6 @@ def load_cifar(batch_size: int=64, root: str="~/scratch/datasets/CIFAR10/"):
     Load CIFAR-10 data
     """
     transform_train = transforms.Compose([
-        #   transforms.RandomCrop(32, padding = 4),
-        #   transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ])
@@ -68,7 +66,7 @@ def load_cifar(batch_size: int=64, root: str="~/scratch/datasets/CIFAR10/"):
     train_data, valid_data = random_split(train, [45000, 5000])
     test_data  = datasets.CIFAR10(root=root, train=False, download=True, transform=transform_test)
 
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True, num_workers=4)
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True, pin_memory=True, num_workers=4)
     valid_dataloader = DataLoader(valid_data, batch_size=batch_size, drop_last=True, num_workers=4)
     test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, num_workers=4)
 

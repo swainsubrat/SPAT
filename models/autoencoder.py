@@ -23,9 +23,15 @@ from torchmetrics.functional import accuracy
 from sklearn.manifold import TSNE
 from torch import nn
 from torchviz import make_dot
+from pl_bolts.models.autoencoders.components import (
+    resnet18_decoder,
+    resnet18_encoder,
+)
+from pl_bolts.models.autoencoders import AE
 
 from dataloader import load_celeba, load_cifar, load_fashion_mnist, load_mnist
 from utils import visualize_cifar_reconstructions
+from models.classifier import CIFAR10Classifier
 
 
 def double_conv(in_channels, out_channels):
@@ -304,6 +310,116 @@ class ANNVAEGAN(BaseAutoEncoder):
         return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "valid_loss"}
 
 
+class MNISTCNNAutoencoder(BaseAutoEncoder):
+    """
+    This is an implementation of the autoencoder for MNIST
+    """
+    def __init__(self,
+                latent_dim: int=32,
+                base_channel_size: int=32,
+                activation_fn: nn.modules.activation=nn.ReLU,
+                perceptual_loss: bool=False,
+                loss: Callable=None) -> None:
+        """
+        Args:
+            latent_dim (int): Dimension of the latent dimension
+            base_channel_size (int): Number of channels we use in the first 
+            convolutional layers. Deeper layers might use a duplicate of it.
+            activation_fn (nn.modules.activation): Activation function
+            perceptual_loss (bool): Perceptual loss using LPIPS
+            loss (Callable): Loss function for autoencoder
+        """
+        self.save_hyperparameters()
+        self.latent_dim    = latent_dim
+        self.c_hid         = base_channel_size
+        self.activation_fn = activation_fn
+
+        if perceptual_loss:
+            if not loss:
+                raise AttributeError("Pass a callable loss to the attribute \
+                                      loss when perceptual loss is True")
+        super().__init__()
+        self.perceptual_loss = perceptual_loss
+        self.loss            = loss
+    
+    def define_encoder(self) -> None:
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 8, 3, stride=2, padding=1),
+            nn.ReLU(True),
+            nn.Conv2d(8, 16, 3, stride=2, padding=1),
+            nn.BatchNorm2d(16),
+            nn.ReLU(True),
+            nn.Conv2d(16, 32, 3, stride=2, padding=0),
+            nn.ReLU(True),
+            nn.Flatten(start_dim=1),
+            nn.Linear(3 * 3 * 32, 128),
+            nn.ReLU(True),
+            nn.Linear(128, self.latent_dim)
+        )
+
+    def define_decoder(self) -> None:
+        self.decoder = nn.Sequential(
+            nn.Linear(self.latent_dim, 128),
+            nn.ReLU(True),
+            nn.Linear(128, 3 * 3 * 32),
+            nn.ReLU(True),
+            nn.Unflatten(dim=1, 
+                unflattened_size=(32, 3, 3)),
+            nn.ConvTranspose2d(32, 16, 3, 
+                stride=2, output_padding=0),
+            nn.BatchNorm2d(16),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(16, 8, 3, stride=2, 
+                padding=1, output_padding=1),
+            nn.BatchNorm2d(8),
+            nn.ReLU(True),
+            nn.ConvTranspose2d(8, 1, 3, stride=2, 
+                padding=1, output_padding=1)
+        )
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = x.reshape((-1, 1, 28, 28))
+        z = self.encoder(x)
+        x_hat = self.decoder(z)
+
+        return x_hat, z
+
+    def training_step(self, batch, batch_idx):
+        x, _ = batch
+        x = x.reshape((-1, 1, 28, 28))
+        x_hat, _ = self(x)
+        if self.perceptual_loss:
+            loss = self.loss(x, x_hat)
+        else:
+            loss = F.mse_loss(x, x_hat, reduction="none")
+        loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
+        self.log("train_loss", loss)
+
+        return loss
+    
+    def validation_step(self, batch, batch_idx):
+        x, _ = batch
+        x = x.reshape((-1, 1, 28, 28))
+        x_hat, _ = self(x)
+        if self.perceptual_loss:
+            loss = self.loss(x, x_hat)
+        else:
+            loss = F.mse_loss(x, x_hat, reduction="none")
+        loss = loss.sum(dim=[1, 2, 3]).mean(dim=[0])
+        self.log("valid_loss", loss)
+    
+    def predict_step(self, batch, batch_idx):
+        x, _ = batch
+        
+        return self(x)
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=20, min_lr=5e-5)
+        
+        return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "valid_loss"}
+
+
 class FashionMNISTAutoencoder(BaseAutoEncoder):
     """
     This is an implementation of the autoencoder for Fashion MNIST
@@ -476,7 +592,7 @@ class CIFAR10Autoencoder(BaseAutoEncoder):
                 latent_dim: int=256,
                 num_input_channels: int=3,
                 base_channel_size: int=32,
-                activation_fn: nn.modules.activation=nn.GELU,
+                activation_fn: nn.modules.activation=nn.ReLU,
                 perceptual_loss: bool=False,
                 loss: Callable=None) -> None:
         """
@@ -542,7 +658,7 @@ class CIFAR10Autoencoder(BaseAutoEncoder):
             nn.ConvTranspose2d(
                 self.c_hid, self.num_input_channels, kernel_size=3, output_padding=1, padding=1, stride=2
             ),  # 16x16 => 32x32
-            nn.Tanh(),  # The input images is scaled between -1 and 1, hence the output has to be bounded as well
+            nn.Sigmoid(),  # The input images is scaled between -1 and 1, hence the output has to be bounded as well
         )
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -585,6 +701,160 @@ class CIFAR10Autoencoder(BaseAutoEncoder):
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.2, patience=20, min_lr=5e-5)
         
         return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "valid_loss"}
+
+
+class CIFAR10VAE(BaseAutoEncoder):
+    def __init__(self, enc_out_dim=512, latent_dim=256, input_height=32):
+
+        self.save_hyperparameters()
+
+        self.enc_out_dim  = enc_out_dim
+        self.latent_dim   = latent_dim
+
+        self.input_height = input_height
+        super().__init__()
+
+        # distribution parameters
+        self.fc_mu = nn.Linear(enc_out_dim, latent_dim)
+        self.fc_var = nn.Linear(enc_out_dim, latent_dim)
+
+        # for the gaussian likelihood
+        self.log_scale = nn.Parameter(torch.Tensor([0.0]))
+
+    def define_encoder(self) -> None:
+        self.encoder = resnet18_encoder(False, False)
+    
+    def define_decoder(self) -> None:
+        self.decoder = resnet18_decoder(
+            latent_dim=self.latent_dim, 
+            input_height=self.input_height, 
+            first_conv=False, 
+            maxpool1=False
+        )
+
+    def get_z(self, x: torch.Tensor) -> torch.Tensor:
+        x_encoded = self.encoder(x)
+        mu, log_var = self.fc_mu(x_encoded), self.fc_var(x_encoded)
+
+        # sample z from q
+        std = torch.exp(log_var / 2)
+        q = torch.distributions.Normal(mu, std)
+        z = q.rsample()
+
+        return z
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        z = self.get_z(x)
+
+        # decoded 
+        x_hat = self.decoder(z)
+
+        return x_hat, z
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=1e-4)
+
+    def gaussian_likelihood(self, mean, logscale, sample):
+        scale = torch.exp(logscale)
+        dist = torch.distributions.Normal(mean, scale)
+        log_pxz = dist.log_prob(sample)
+        return log_pxz.sum(dim=(1, 2, 3))
+
+    def kl_divergence(self, z, mu, std):
+        # --------------------------
+        # Monte carlo KL divergence
+        # --------------------------
+        # 1. define the first two probabilities (in this case Normal for both)
+        p = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(std))
+        q = torch.distributions.Normal(mu, std)
+
+        # 2. get the probabilities from the equation
+        log_qzx = q.log_prob(z)
+        log_pz = p.log_prob(z)
+
+        # kl
+        kl = (log_qzx - log_pz)
+        kl = kl.sum(-1)
+        return kl
+
+    def training_step(self, batch, batch_idx):
+        x, _ = batch
+
+        # encode x to get the mu and variance parameters
+        x_encoded = self.encoder(x)
+        mu, log_var = self.fc_mu(x_encoded), self.fc_var(x_encoded)
+
+        # sample z from q
+        std = torch.exp(log_var / 2)
+        q = torch.distributions.Normal(mu, std)
+        z = q.rsample()
+
+        # decoded 
+        x_hat = self.decoder(z)
+
+        # reconstruction loss
+        recon_loss = self.gaussian_likelihood(x_hat, self.log_scale, x)
+
+        # kl
+        kl = self.kl_divergence(z, mu, std)
+
+        # elbo
+        elbo = (kl - recon_loss)
+        elbo = elbo.mean()
+
+        self.log_dict({
+            'elbo': elbo,
+            'kl': kl.mean(),
+            'recon_loss': recon_loss.mean(), 
+            'reconstruction': recon_loss.mean(),
+            'kl': kl.mean(),
+        })
+
+        return elbo
+
+
+class CIFAR10LightningAutoencoder(AE):
+    def __init__(self, input_height=32):
+
+        super().__init__(input_height=input_height)
+        self.cls_model = CIFAR10Classifier.load_from_checkpoint("./lightning_logs/cifar10_classifier/checkpoints/epoch=49-step=35150.ckpt")
+        self.cls_model.eval()
+
+    def get_z(self, x: torch.Tensor) -> torch.Tensor:
+        feats = self.encoder(x)
+        z = self.fc(feats)
+
+        return z
+    
+    def get_x_hat(self, z: torch.Tensor) -> torch.Tensor:
+        x_hat = self.decoder(z)
+
+        return x_hat
+    
+    def forward(self, x):
+        feats = self.encoder(x)
+        z = self.fc(feats)
+        x_hat = self.decoder(z)
+
+        return x_hat, z
+    
+    def step(self, batch, batch_idx):
+        x, y = batch
+
+        feats = self.encoder(x)
+        z = self.fc(feats)
+        x_hat = self.decoder(z)
+
+        recon_loss = F.mse_loss(x_hat, x, reduction="mean")
+        
+        # classifier loss
+
+        logits = self.cls_model(x)
+        cls_loss = F.nll_loss(logits, y)
+
+        loss = recon_loss + cls_loss
+
+        return loss, {"loss": loss}
 
 
 class CelebAAutoencoder(BaseAutoEncoder):
@@ -871,6 +1141,7 @@ if __name__ == "__main__":
         plt.imshow(grid)
         plt.axis('off')
         plt.show()
+        plt.savefig("../img/mnist_cnn_ae")
     
     def plot_recons_with_latent_codes(x, x_hat, z):
         plt.subplot(1,3,1)
@@ -917,13 +1188,12 @@ if __name__ == "__main__":
     """
     # import os
 
-    # os.environ["CUDA_VISIBLE_DEVICES"] = "2, 7"
     # train_dataloader, valid_dataloader, test_dataloader = load_cifar(
     #     root="/home/sweta/scratch/datasets/CIFAR10/", batch_size=128
     # )
     
     # model = CIFAR10Autoencoder()
-    # trainer = pl.Trainer(max_epochs=200, gpus=2, default_root_dir="..")
+    # trainer = pl.Trainer(max_epochs=100, gpus=1, default_root_dir="..")
     # # trainer.fit(model, train_dataloader, valid_dataloader)
 
     # # Testing
@@ -931,11 +1201,38 @@ if __name__ == "__main__":
     #     root="/home/sweta/scratch/datasets/CIFAR10/", batch_size=1
     # )
     # input_imgs, _ = next(iter(test_dataloader))
-    # model = CIFAR10Autoencoder.load_from_checkpoint("../lightning_logs/cifar10_ae_mse/checkpoints/epoch=199-step=35000.ckpt")
+    # model = CIFAR10Autoencoder.load_from_checkpoint("../lightning_logs/version_39/checkpoints/epoch=99-step=35100.ckpt")
     # model.eval()
     # reconst_imgs, _ = model(input_imgs)
 
     # visualize_cifar_reconstructions(input_imgs, reconst_imgs, file_name="cifar10_ae_mse")
+
+    """
+    Testing CIFAR10 Lightning
+    """
+    # model = CIFAR10LightningAutoencoder()
+    # # model = model.from_pretrained('cifar10-resnet18')
+
+    # train_dataloader, valid_dataloader, test_dataloader = load_cifar(
+    #     root="~/scratch/datasets/CIFAR10/", batch_size=128
+    # )
+
+    # trainer = pl.Trainer(max_epochs=200, gpus=1, default_root_dir="..")
+    
+    # trainer.fit(model, train_dataloader, valid_dataloader)
+
+    # Testing
+    # trainer = pl.Trainer()
+    # model = CIFAR10LightningAutoencoder.load_from_checkpoint("../lightning_logs/version_40/checkpoints/epoch=199-step=70200.ckpt")
+    # model.eval()
+
+    # train_dataloader, valid_dataloader, test_dataloader = load_cifar(
+    #     root="/home/sweta/scratch/datasets/CIFAR10/", batch_size=10
+    # )
+    # input_imgs, _ = next(iter(test_dataloader))
+    # reconst_imgs, _ = model(input_imgs)
+
+    # visualize_cifar_reconstructions(input_imgs[-1].reshape(-1, 3, 32, 32), reconst_imgs[-1].reshape(-1, 3, 32, 32), file_name="cifar10_ae_mse_with_cls_loss")
 
     """
     Testing MNIST autoencoder
@@ -960,69 +1257,93 @@ if __name__ == "__main__":
     # plot_recons(images=images, reshape=(-1, 1, 28, 28))
 
     """
-    Testing class-constrained MNIST autoencoder
+    Testing MNIST CNN autoencoder
     """
+    os.environ["CUDA_VISIBLE_DEVICES"] = "5"
     train_dataloader, valid_dataloader, test_dataloader = load_mnist(
         root="~/scratch/datasets/MNIST/", batch_size=128
     )
-    model = ClassConstrainedANNAutoencoder()
-    trainer = pl.Trainer(max_epochs=10, accelerator="mps", default_root_dir="..")
-    # trainer.fit(model, train_dataloader, valid_dataloader)    
+    model = MNISTCNNAutoencoder()
+    trainer = pl.Trainer(max_epochs=20, accelerator="gpu", default_root_dir="..")
+    # trainer.fit(model, train_dataloader, valid_dataloader) 
 
-    model = ClassConstrainedANNAutoencoder.load_from_checkpoint("../lightning_logs/version_39/checkpoints/checkpoint.ckpt")
+    model = MNISTCNNAutoencoder.load_from_checkpoint("../lightning_logs/version_42/checkpoints/epoch=19-step=8580.ckpt")
     model.eval()
 
     # Reconstruct
     train_dataloader, valid_dataloader, test_dataloader = load_mnist(
         root="~/scratch/datasets/MNIST/", batch_size=10
     )
-    x, y = next(iter(test_dataloader))
-    x = x.to(device)
-    model = model.to(device)
-    x_hat, z, preds = model(x)
-    # make_dot(preds, params=dict(list(model.named_parameters()))).render("torchviz", format="png")
-    # p = trainer.test(model, dataloaders=test_dataloader, verbose=True)
-    # print(p)
-    x = x.cpu().detach().numpy()
-    x_hat = x_hat.cpu().detach().numpy()
-    # images = np.concatenate([x, x_hat], 0)
-    # plot_recons(images=images, reshape=(-1, 1, 28, 28))
-    for image, code, recon in zip(x, z, x_hat):
-        plot_recons_with_latent_codes(image, recon, code)
+    x, _ = next(iter(test_dataloader))
+    x = x.reshape((-1, 1, 28, 28))
+    x_hat, _ = model(x)
+    images = torch.cat((x, x_hat), 0)
+    plot_recons(images=images, reshape=(-1, 1, 28, 28))
 
-    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(batch_size=128)
+    """
+    Testing class-constrained MNIST autoencoder
+    """
+    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(
+    #     root="~/scratch/datasets/MNIST/", batch_size=128
+    # )
     # model = ClassConstrainedANNAutoencoder()
-    # trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..", checkpoint_callback=True, logger=True)
+    # trainer = pl.Trainer(max_epochs=10, accelerator="mps", default_root_dir="..")
     # # trainer.fit(model, train_dataloader, valid_dataloader)    
 
-    # model = ClassConstrainedANNAutoencoder.load_from_checkpoint("../lightning_logs/version_14/checkpoints/epoch=9-step=4290.ckpt")
-    # model = model.to(device)
+    # model = ClassConstrainedANNAutoencoder.load_from_checkpoint("../lightning_logs/version_39/checkpoints/checkpoint.ckpt")
     # model.eval()
 
-    _, _, test_dataloader = load_mnist(batch_size=1)
-    encoded_samples = []
-    for i, (image, label) in enumerate(test_dataloader):
-        image = image.to(device)
-        label = label.item()
+    # # Reconstruct
+    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(
+    #     root="~/scratch/datasets/MNIST/", batch_size=10
+    # )
+    # x, y = next(iter(test_dataloader))
+    # x = x.to(device)
+    # model = model.to(device)
+    # x_hat, z, preds = model(x)
+    # # make_dot(preds, params=dict(list(model.named_parameters()))).render("torchviz", format="png")
+    # # p = trainer.test(model, dataloaders=test_dataloader, verbose=True)
+    # # print(p)
+    # x = x.cpu().detach().numpy()
+    # x_hat = x_hat.cpu().detach().numpy()
+    # # images = np.concatenate([x, x_hat], 0)
+    # # plot_recons(images=images, reshape=(-1, 1, 28, 28))
+    # for image, code, recon in zip(x, z, x_hat):
+    #     plot_recons_with_latent_codes(image, recon, code)
 
-        with torch.no_grad():
-            z = model.get_z(image)
-        encoded_img = z.flatten().cpu().numpy()
-        encoded_sample = {f"Enc. Variable {i}": enc for i, enc in enumerate(encoded_img)}
-        encoded_sample['label'] = label
-        encoded_samples.append(encoded_sample)
+    # # train_dataloader, valid_dataloader, test_dataloader = load_mnist(batch_size=128)
+    # # model = ClassConstrainedANNAutoencoder()
+    # # trainer = pl.Trainer(max_epochs=10, gpus=1, default_root_dir="..", checkpoint_callback=True, logger=True)
+    # # # trainer.fit(model, train_dataloader, valid_dataloader)    
 
-    encoded_samples = pd.DataFrame(encoded_samples)
-    # print(encoded_samples)
-    tsne = TSNE(n_components=2)
-    tsne_results = tsne.fit_transform(encoded_samples.drop(['label'],axis=1))
+    # # model = ClassConstrainedANNAutoencoder.load_from_checkpoint("../lightning_logs/version_14/checkpoints/epoch=9-step=4290.ckpt")
+    # # model = model.to(device)
+    # # model.eval()
 
-    fig = px.scatter(tsne_results, x=0, y=1,
-                    color=encoded_samples.label.astype(str),
-                    color_discrete_map={"0":"red", "1":"blue", "2":"yellow", "3":"gray", "4":"brown", "5":"aqua", "6":"maroon", "7":"purple", "8":"teal", "9":"lime"},
-                    labels={'0': 'dimension-1', '1': 'dimension-2'})
-    # fig.write_image("../img/tsne_cc_extended.png")
-    fig.show()
+    # _, _, test_dataloader = load_mnist(batch_size=1)
+    # encoded_samples = []
+    # for i, (image, label) in enumerate(test_dataloader):
+    #     image = image.to(device)
+    #     label = label.item()
+
+    #     with torch.no_grad():
+    #         z = model.get_z(image)
+    #     encoded_img = z.flatten().cpu().numpy()
+    #     encoded_sample = {f"Enc. Variable {i}": enc for i, enc in enumerate(encoded_img)}
+    #     encoded_sample['label'] = label
+    #     encoded_samples.append(encoded_sample)
+
+    # encoded_samples = pd.DataFrame(encoded_samples)
+    # # print(encoded_samples)
+    # tsne = TSNE(n_components=2)
+    # tsne_results = tsne.fit_transform(encoded_samples.drop(['label'],axis=1))
+
+    # fig = px.scatter(tsne_results, x=0, y=1,
+    #                 color=encoded_samples.label.astype(str),
+    #                 color_discrete_map={"0":"red", "1":"blue", "2":"yellow", "3":"gray", "4":"brown", "5":"aqua", "6":"maroon", "7":"purple", "8":"teal", "9":"lime"},
+    #                 labels={'0': 'dimension-1', '1': 'dimension-2'})
+    # # fig.write_image("../img/tsne_cc_extended.png")
+    # fig.show()
 
     """
     Testing FashionMNIST autoencoder
