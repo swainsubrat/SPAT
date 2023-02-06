@@ -1,7 +1,7 @@
 from models.autoencoder import (ANNAutoencoder, ClassConstrainedANNAutoencoder,
                                 CelebAAutoencoder, CIFAR10Autoencoder, CIFAR10VAE,
-                                CIFAR10LightningAutoencoder)
-from models.classifier import (MNISTClassifier, CelebAClassifier, CIFAR10Classifier)
+                                CIFAR10LightningAutoencoder, MNISTCNNAutoencoder)
+from models.classifier import (MNISTClassifier, CelebAClassifier, CIFAR10Classifier, MNISTCNNClassifier)
 
 MODEL_MAPPINGS = {
     "./lightning_logs/mnist_classifier/checkpoints/epoch=9-step=9370.ckpt": MNISTClassifier,
@@ -14,5 +14,7 @@ MODEL_MAPPINGS = {
     "./lightning_logs/celeba_ae_mse/checkpoints/epoch=49-step=31700.ckpt": CelebAAutoencoder,
     "./lightning_logs/mnist_ccae_mse/checkpoints/checkpoint.ckpt": ClassConstrainedANNAutoencoder,
     "./lightning_logs/version_39/checkpoints/epoch=499-step=175500.ckpt": CIFAR10VAE,
-    "./lightning_logs/version_40/checkpoints/epoch=199-step=70200.ckpt": CIFAR10LightningAutoencoder
+    "./lightning_logs/version_40/checkpoints/epoch=199-step=70200.ckpt": CIFAR10LightningAutoencoder,
+    "./lightning_logs/mnist_cnn_classifier/checkpoints/epoch=49-step=42950.ckpt": MNISTCNNClassifier,
+    "./lightning_logs/mnist_cnn_ae/checkpoints/epoch=19-step=8580.ckpt": MNISTCNNAutoencoder
 }
