@@ -21,7 +21,6 @@ def get_xyz(args, autoencoder_model, test_dataloader):
 
     z_test = autoencoder_model.get_z(x_test)
     z_test_np = z_test.detach().cpu().numpy()
-    print(z_test.shape)
 
     return (x_test, x_test_np), (y_test, y_test_np), (z_test, z_test_np)
 
@@ -42,9 +41,6 @@ def get_models(args):
 
     classifier_model_class = MODEL_MAPPINGS[classifier_path]
     autoencoder_model_class = MODEL_MAPPINGS[autoencoder_path]
-    import os
-    print(os.listdir())
-    print(classifier_path)
 
     classifier_model = classifier_model_class.load_from_checkpoint(classifier_path).to(args.device)
     autoencoder_model = autoencoder_model_class.load_from_checkpoint(autoencoder_path).to(args.device)
@@ -58,7 +54,8 @@ def hybridize(x, y, z, config, classifier_model, autoencoder_model):
     hybrid_classifier_model = nn.Sequential(
             autoencoder_model.decoder,
             classifier_model.model
-        )
+        ).to("cpu")
+
     miscs = config["miscs"]
     criterion = nn.CrossEntropyLoss()
     # optimizer = optim.Adam(mnist_classifier.parameters(), lr=0.01)
@@ -174,6 +171,7 @@ def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, 
             z_adv = modified_attack.generate(x=z[1])
 
         # calculate noise
+        autoencoder_model = autoencoder_model.to(config["device"])
         x_hat_adv   = autoencoder_model.decoder(torch.Tensor(z_adv).to(config["device"]))
         x_hat       = autoencoder_model.decoder(torch.Tensor(z[1]).to(config["device"]))
         delta_x_hat  = x_hat_adv - x_hat
@@ -187,17 +185,17 @@ def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, 
         result[name]["modf_x_adv_acc"] = modf_x_adv_acc
 
         # reconstructed attack
-        predictions = hybrid_classifier.predict(z_adv)
-        x_hat_adv_acc = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
+        # predictions = hybrid_classifier.predict(z_adv)
+        # x_hat_adv_acc = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
 
         result[name]["z_adv"] = z_adv
         result[name]["x_hat_adv"] = x_hat_adv.cpu().detach().numpy()
-        result[name]["x_hat_adv_acc"] = x_hat_adv_acc
+        # result[name]["x_hat_adv_acc"] = x_hat_adv_acc
         
         # send combined noise
         result[name]["delta_x_hat"] = delta_x_hat.cpu().detach().numpy()
 
         print("Robust accuracy of modified adversarial attack: {}%".format(modf_x_adv_acc * 100))
-        print("Robust accuracy of reconstructed adversarial attack: {}%".format(x_hat_adv_acc * 100))
+        # print("Robust accuracy of reconstructed adversarial attack: {}%".format(x_hat_adv_acc * 100))
 
     return result

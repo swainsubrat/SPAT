@@ -377,6 +377,31 @@ class MNISTCNNAutoencoder(BaseAutoEncoder):
                 padding=1, output_padding=1)
         )
     
+    def get_z(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Get the embedding of the input
+
+        Args:
+            x (torch.Tensor): Input image to the encoder
+        
+        Returns:
+            Encoded input
+        """
+        x = x.reshape((-1, 1, 28, 28))
+        return self.encoder(x)
+
+    # def get_x_hat(self, z: torch.Tensor) -> torch.Tensor:
+    #     """
+    #     Get the reconstructed output
+
+    #     Args:
+    #         z (torch.Tensor): Image embeddings
+        
+    #     Returns:
+    #         Reconstructed output
+    #     """
+    #     return self.decoder(z)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = x.reshape((-1, 1, 28, 28))
         z = self.encoder(x)
@@ -817,7 +842,7 @@ class CIFAR10LightningAutoencoder(AE):
     def __init__(self, input_height=32):
 
         super().__init__(input_height=input_height)
-        self.cls_model = CIFAR10Classifier.load_from_checkpoint("./lightning_logs/cifar10_classifier/checkpoints/epoch=49-step=35150.ckpt")
+        self.cls_model = CIFAR10Classifier.load_from_checkpoint("../lightning_logs/cifar10_classifier/checkpoints/epoch=49-step=35150.ckpt")
         self.cls_model.eval()
 
     def get_z(self, x: torch.Tensor) -> torch.Tensor:
@@ -1210,15 +1235,15 @@ if __name__ == "__main__":
     """
     Testing CIFAR10 Lightning
     """
-    # model = CIFAR10LightningAutoencoder()
-    # # model = model.from_pretrained('cifar10-resnet18')
+    model = CIFAR10LightningAutoencoder()
+    print(model.encoder)
+    # model = model.from_pretrained('cifar10-resnet18')
 
     # train_dataloader, valid_dataloader, test_dataloader = load_cifar(
     #     root="~/scratch/datasets/CIFAR10/", batch_size=128
     # )
 
-    # trainer = pl.Trainer(max_epochs=200, gpus=1, default_root_dir="..")
-    
+    # trainer = pl.Trainer(max_epochs=200, accelerator="mps", default_root_dir="..")
     # trainer.fit(model, train_dataloader, valid_dataloader)
 
     # Testing
@@ -1259,26 +1284,26 @@ if __name__ == "__main__":
     """
     Testing MNIST CNN autoencoder
     """
-    os.environ["CUDA_VISIBLE_DEVICES"] = "5"
-    train_dataloader, valid_dataloader, test_dataloader = load_mnist(
-        root="~/scratch/datasets/MNIST/", batch_size=128
-    )
-    model = MNISTCNNAutoencoder()
-    trainer = pl.Trainer(max_epochs=20, accelerator="gpu", default_root_dir="..")
-    # trainer.fit(model, train_dataloader, valid_dataloader) 
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(
+    #     root="~/scratch/datasets/MNIST/", batch_size=128
+    # )
+    # model = MNISTCNNAutoencoder()
+    # trainer = pl.Trainer(max_epochs=20, accelerator="gpu", default_root_dir="..")
+    # # trainer.fit(model, train_dataloader, valid_dataloader) 
 
-    model = MNISTCNNAutoencoder.load_from_checkpoint("../lightning_logs/version_42/checkpoints/epoch=19-step=8580.ckpt")
-    model.eval()
+    # model = MNISTCNNAutoencoder.load_from_checkpoint("../lightning_logs/version_42/checkpoints/epoch=19-step=8580.ckpt")
+    # model.eval()
 
-    # Reconstruct
-    train_dataloader, valid_dataloader, test_dataloader = load_mnist(
-        root="~/scratch/datasets/MNIST/", batch_size=10
-    )
-    x, _ = next(iter(test_dataloader))
-    x = x.reshape((-1, 1, 28, 28))
-    x_hat, _ = model(x)
-    images = torch.cat((x, x_hat), 0)
-    plot_recons(images=images, reshape=(-1, 1, 28, 28))
+    # # Reconstruct
+    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(
+    #     root="~/scratch/datasets/MNIST/", batch_size=10
+    # )
+    # x, _ = next(iter(test_dataloader))
+    # x = x.reshape((-1, 1, 28, 28))
+    # x_hat, _ = model(x)
+    # images = torch.cat((x, x_hat), 0)
+    # plot_recons(images=images, reshape=(-1, 1, 28, 28))
 
     """
     Testing class-constrained MNIST autoencoder
