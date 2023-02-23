@@ -147,21 +147,22 @@ def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, 
         if conditionals["calculate_original"]:
             attack = attack_name(classifier, **kwargs)
             x_adv = attack.generate(x=x[1])
-            predictions = classifier.predict(x_test_adv_np)
+            predictions = classifier.predict(x_adv)
             x_adv_acc = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
 
             result[name]["x_adv"] = x_adv
             result[name]["x_adv_acc"] = x_adv_acc
 
             # calculate noise
-            delta_x = x_test_adv_np - x[1]
+            delta_x = x_adv - x[1]
             result[name]["delta_x"] = delta_x
+            accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
             print("Robust accuracy of original adversarial attack: {}%".format(accuracy * 100))
 
         # ------------------------------------------------- #
         # ---------------- Modified Attack ---------------- #
         # ------------------------------------------------- #
-        modified_attack = attack_name(hybrid_classifier)
+        modified_attack = attack_name(hybrid_classifier, **kwargs)
         if conditionals["is_class_constrained"]:
             z_adv = modified_attack.generate(x=z[1], mask=generate_mask(
                 latent_dim=int(config["latent_shape"]),
@@ -185,17 +186,17 @@ def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, 
         result[name]["modf_x_adv_acc"] = modf_x_adv_acc
 
         # reconstructed attack
-        # predictions = hybrid_classifier.predict(z_adv)
-        # x_hat_adv_acc = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
+        predictions = hybrid_classifier.predict(z_adv)
+        x_hat_adv_acc = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
 
         result[name]["z_adv"] = z_adv
         result[name]["x_hat_adv"] = x_hat_adv.cpu().detach().numpy()
-        # result[name]["x_hat_adv_acc"] = x_hat_adv_acc
+        result[name]["x_hat_adv_acc"] = x_hat_adv_acc
         
         # send combined noise
         result[name]["delta_x_hat"] = delta_x_hat.cpu().detach().numpy()
 
         print("Robust accuracy of modified adversarial attack: {}%".format(modf_x_adv_acc * 100))
-        # print("Robust accuracy of reconstructed adversarial attack: {}%".format(x_hat_adv_acc * 100))
+        print("Robust accuracy of reconstructed adversarial attack: {}%".format(x_hat_adv_acc * 100))
 
     return result

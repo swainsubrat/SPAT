@@ -36,43 +36,43 @@ from attacks.art_attack import get_models, get_xyz, hybridize
 from attacks.plot_attack import plot_adversarial_images, plot_robust_accuracy
 from dataloader import DATALOADER_MAPPINGS
 
-class Args:
-    batch_size = 100
-    attack_name = "zoo"
-    device  = "cuda"
-    model_name = "cifar10_cnn_1"
-    ae_name = "cnn_256"
-    plot = False
-    plot_dir = "./plots"
-    # kwargs = {"batch_size": 32, "nb_grads": 5, "epsilon": 1e-05} # deepfool
-    # kwargs = {"eps": 0.1} # pgd and fgsm
-    kwargs = {"batch_size": 30}
+# class Args:
+#     batch_size = 100
+#     attack_name = "zoo"
+#     device  = "cuda"
+#     model_name = "cifar10_cnn_1"
+#     ae_name = "cnn_256"
+#     plot = False
+#     plot_dir = "./plots"
+#     # kwargs = {"batch_size": 32, "nb_grads": 5, "epsilon": 1e-05} # deepfool
+#     # kwargs = {"eps": 0.1} # pgd and fgsm
+#     kwargs = {"batch_size": 30}
 
-args = Args()
+# args = Args()
 
-attack_name = ATTACK_MAPPINGS.get(args.attack_name)
-dataset_name = args.model_name.split("_")[0]
-print(f"Working on the dataset: {dataset_name}!!!!!")
+# attack_name = ATTACK_MAPPINGS.get(args.attack_name)
+# dataset_name = args.model_name.split("_")[0]
+# print(f"Working on the dataset: {dataset_name}!!!!!")
 
-with open(f"./configs/{dataset_name}.yml", "r") as f:
-    config = yaml.safe_load(f)
+# with open(f"./configs/{dataset_name}.yml", "r") as f:
+#     config = yaml.safe_load(f)
 
-classifier_model, autoencoder_model, config = get_models(args)
-print(f"Loaded classifier and autoencoder models in eval mode!!!!!")
-_, _, test_dataloader = DATALOADER_MAPPINGS[config["dataset_name"]](batch_size=args.batch_size)
-print(f"Loaded dataloader!!!!!")
+# classifier_model, autoencoder_model, config = get_models(args)
+# print(f"Loaded classifier and autoencoder models in eval mode!!!!!")
+# _, _, test_dataloader = DATALOADER_MAPPINGS[config["dataset_name"]](batch_size=args.batch_size)
+# print(f"Loaded dataloader!!!!!")
 
-x, y, z = get_xyz(args, autoencoder_model, test_dataloader)
+# x, y, z = get_xyz(args, autoencoder_model, test_dataloader)
     
-config["latent_shape"] = args.ae_name.split('_')[-1]
-classifier, hybrid_classifier, accuracy = hybridize(x, y, z, 
-                                                    config, classifier_model, autoencoder_model)
+# config["latent_shape"] = args.ae_name.split('_')[-1]
+# classifier, hybrid_classifier, accuracy = hybridize(x, y, z, 
+#                                                     config, classifier_model, autoencoder_model)
 
-# Perform attack
-conditionals = {
-    "calculate_original": True,
-    "is_class_constrained": False
-}
+# # Perform attack
+# conditionals = {
+#     "calculate_original": True,
+#     "is_class_constrained": False
+# }
 
 def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, autoencoder_model, kwargs, conditionals):
     result = {}
@@ -96,7 +96,8 @@ def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, 
         # calculate noise
         delta_x = x_test_adv_np - x[1]
         result[name]["delta_x"] = delta_x
-        print("Robust accuracy of original adversarial attack: {}%".format(accuracy * 100))
+        print("Robust accuracy of original adversarial attack: {}%".format(x_adv_acc * 100))
+        print("ha ha")
 
     # ------------------------------------------------- #
     # ---------------- Modified Attack ---------------- #

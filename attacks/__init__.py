@@ -3,7 +3,7 @@ import numpy as np
 from art.attacks.evasion import (FastGradientMethod, DeepFool,
                 CarliniLInfMethod, BasicIterativeMethod,
                 ProjectedGradientDescentPyTorch, ZooAttack,
-                HopSkipJump)
+                HopSkipJump, SaliencyMapMethod)
 
 ATTACK_MAPPINGS = {
     "all" : "all",
@@ -14,6 +14,7 @@ ATTACK_MAPPINGS = {
     "deepfool" : DeepFool,
     "zoo": ZooAttack,
     "hopskipjump": HopSkipJump,
+    "jsma": SaliencyMapMethod
 }
 
 def generate_mask(latent_dim, n_classes, labels):

@@ -842,7 +842,7 @@ class CIFAR10LightningAutoencoder(AE):
     def __init__(self, input_height=32):
 
         super().__init__(input_height=input_height)
-        self.cls_model = CIFAR10Classifier.load_from_checkpoint("../lightning_logs/cifar10_classifier/checkpoints/epoch=49-step=35150.ckpt")
+        self.cls_model = CIFAR10Classifier.load_from_checkpoint("./lightning_logs/cifar10_classifier/checkpoints/epoch=49-step=35150.ckpt")
         self.cls_model.eval()
 
     def get_z(self, x: torch.Tensor) -> torch.Tensor:
@@ -1236,15 +1236,14 @@ if __name__ == "__main__":
     Testing CIFAR10 Lightning
     """
     model = CIFAR10LightningAutoencoder()
-    print(model.encoder)
-    # model = model.from_pretrained('cifar10-resnet18')
+    model = model.from_pretrained('cifar10-resnet18')
 
-    # train_dataloader, valid_dataloader, test_dataloader = load_cifar(
-    #     root="~/scratch/datasets/CIFAR10/", batch_size=128
-    # )
+    train_dataloader, valid_dataloader, test_dataloader = load_cifar(
+        root="~/scratch/datasets/CIFAR10/", batch_size=128
+    )
 
-    # trainer = pl.Trainer(max_epochs=200, accelerator="mps", default_root_dir="..")
-    # trainer.fit(model, train_dataloader, valid_dataloader)
+    trainer = pl.Trainer(max_epochs=200, accelerator="gpu", default_root_dir="..")
+    trainer.fit(model, train_dataloader, valid_dataloader)
 
     # Testing
     # trainer = pl.Trainer()
