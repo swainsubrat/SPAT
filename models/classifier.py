@@ -10,6 +10,7 @@ import pytorch_lightning as pl
 import torch.nn.functional as F
 
 from torch import logit, nn
+from torchvision.models import inceptionv3, Inception_V3_Weights
 from torchmetrics.functional import accuracy
 from dataloader import load_celeba, load_mnist, load_cifar, load_fashion_mnist
 from torch.optim.lr_scheduler import OneCycleLR
@@ -241,6 +242,74 @@ class CIFAR10Classifier(pl.LightningModule):
             "interval": "step",
         }
         return {"optimizer": optimizer, "lr_scheduler": scheduler_dict}
+
+
+class ImagenetClassifier(pl.LightningModule):
+    """
+    This is an implementation of the CIFAR10 classifier
+    """
+    def __init__(self, batch_size: int=32, lr: float=0.05) -> None:
+        super().__init__()
+
+        self.save_hyperparameters()
+        self.batch_size = batch_size
+        # self.criterion = nn.CrossEntropyLoss()
+
+        self.model = inceptionv3(weights=Inception_V3_Weights.IMAGENET1K_V1, num_classes=10)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.model(x)
+
+        return F.log_softmax(x, dim=1)
+    
+    # def training_step(self, batch, batch_idx):
+    #     x, y = batch
+    #     logits = self(x)
+    #     loss = F.nll_loss(logits, y)
+    #     self.log("train_loss", loss)
+    #     return loss
+
+    def evaluate(self, batch, stage=None):
+        x, y = batch
+        logits = self(x)
+        loss = F.nll_loss(logits, y)
+        preds = torch.argmax(logits, dim=1)
+        acc = accuracy(preds, y)
+
+        if stage:
+            self.log(f"{stage}_loss", loss, prog_bar=True)
+            self.log(f"{stage}_acc", acc, prog_bar=True)
+
+    # def validation_step(self, batch, batch_idx):
+    #     self.evaluate(batch, "val")
+
+    def test_step(self, batch, batch_idx):
+        self.evaluate(batch, "test")
+
+    def predict_step(self, batch, batch_idx):
+        # enable Monte Carlo Dropout
+        x, y = batch
+        
+        return self(x)
+
+    # def configure_optimizers(self):
+    #     optimizer = torch.optim.SGD(
+    #         self.parameters(),
+    #         lr=self.hparams.lr,
+    #         momentum=0.9,
+    #         weight_decay=5e-4,
+    #     )
+    #     steps_per_epoch = 45000 // self.batch_size
+    #     scheduler_dict = {
+    #         "scheduler": OneCycleLR(
+    #             optimizer,
+    #             0.1,
+    #             epochs=self.trainer.max_epochs,
+    #             steps_per_epoch=steps_per_epoch,
+    #         ),
+    #         "interval": "step",
+    #     }
+    #     return {"optimizer": optimizer, "lr_scheduler": scheduler_dict}
 
 
 class CelebAClassifier(pl.LightningModule):

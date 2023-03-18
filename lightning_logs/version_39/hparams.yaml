@@ -1,0 +1,7 @@
+enc_out_dim: 512
+enc_type: resnet18
+first_conv: false
+input_height: 32
+latent_dim: 256
+lr: 0.0001
+maxpool1: false

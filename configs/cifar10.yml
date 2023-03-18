@@ -6,6 +6,7 @@ classifiers:
 autoencoders:
   ann_128: ./lightning_logs/cifar10_ae_mse/checkpoints/epoch=199-step=35000.ckpt
   cnn_256: ./lightning_logs/cifar10_ae_nll/checkpoints/epoch=199-step=70200.ckpt
+  cnn_256_noisy: ./lightning_logs/version_39/checkpoints/epoch=199-step=70200.ckpt
 
 miscs:
   nb_classes: 10

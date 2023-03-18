@@ -72,6 +72,23 @@ def load_cifar(batch_size: int=64, root: str="~/scratch/datasets/CIFAR10/"):
 
     return train_dataloader, valid_dataloader, test_dataloader
 
+def load_cifar_x(batch_size: int=64, root: str="~/scratch/datasets/CIFAR10/", dataset_len=1024):
+    """
+    Load CIFAR-10 1024 data
+    """
+    torch.manual_seed(43)
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ])
+    
+    train = datasets.CIFAR10(root=root, train=True, download=True, transform=transform)
+    train_data, _ = random_split(train, [dataset_len, len(train)-dataset_len])
+
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, pin_memory=True, num_workers=4)
+
+    return train_dataloader
+
 def load_celeba(batch_size: int=64, root: str="~/scratch/datasets/CelebA/"):
     """
     Load CelebA dataset
@@ -122,15 +139,61 @@ def load_fashion_mnist(batch_size: int=64, root: str="~/scratch/datasets/Fashion
 
     return train_dataloader, valid_dataloader, test_dataloader
 
+def load_gtsrb(batch_size: int=64, root: str="~/scratch/datasets/GTSRB/gtsrb/"):
+    """
+    Load GTSRB data
+    """
+    transform = transforms.Compose([
+        transforms.Resize((32, 32)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.3403, 0.3121, 0.3214),
+                            (0.2724, 0.2608, 0.2669))
+        ])
+    
+    train = datasets.GTSRB(root=root, split="train", download=True, transform=transform)
+    train_data, valid_data = random_split(train, [45000, 5000])
+    test_data  = datasets.GTSRB(root=root, split="test", download=True, transform=transform)
+
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True, pin_memory=True, num_workers=4)
+    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, drop_last=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, num_workers=4)
+
+    return train_dataloader, valid_dataloader, test_dataloader
+
+
+def load_imagenet(batch_size: int=64, root: str="~/scratch/datasets/IMAGENET"):
+    """
+    Load GTSRB data
+    """
+    transform = transforms.Compose([
+        transforms.Resize((32, 32)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.3403, 0.3121, 0.3214),
+                            (0.2724, 0.2608, 0.2669))
+        ])
+    
+    train = datasets.GTSRB(root=root, split="train", download=True, transform=transform)
+    train_data, valid_data = random_split(train, [45000, 5000])
+    test_data  = datasets.GTSRB(root=root, split="test", download=True, transform=transform)
+
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True, pin_memory=True, num_workers=4)
+    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, drop_last=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, num_workers=4)
+
+    return train_dataloader, valid_dataloader, test_dataloader
+
+
 DATALOADER_MAPPINGS = {
     "mnist": load_mnist,
     "cifar10": load_cifar,
     "celeba": load_celeba,
-    "fmnist": load_fashion_mnist
+    "fmnist": load_fashion_mnist,
+    "gtsrb": load_gtsrb,
+    "cifar101000": load_cifar_x
 }
 
 if __name__ == "__main__":
-    train_dataloader, test_dataloader = load_celeba()
+    train_dataloader, test_dataloader = load_gtsrb()
     print(len(train_dataloader))
     for x, y in train_dataloader:
         print(x[0])

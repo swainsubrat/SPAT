@@ -1,5 +1,5 @@
 import sys
-
+import time
 import yaml
 
 sys.path.append("..")
@@ -34,7 +34,7 @@ def get_models(args):
         config = yaml.safe_load(f)
 
     config["device"]       = torch.device(args.device)
-    config["dataset_name"] = dataset_name
+    config["dataset_name"] = dataset_name + str(args.dataset_len)
 
     classifier_path = config["classifiers"][args.model_name]
     autoencoder_path = config["autoencoders"][args.ae_name]
@@ -81,15 +81,15 @@ def hybridize(x, y, z, config, classifier_model, autoencoder_model):
     # Step 5: Evaluate the ART classifier on benign test examples
     predictions = classifier.predict(x[1])
     accuracy = np.sum(np.argmax(predictions, -1) == y[1])/ len(y[1])
-    print("Accuracy on benign test examples: {}%".format(accuracy * 100))
+    # print("Accuracy on benign test examples: {}%".format(accuracy * 100))
 
     # from torchsummary import summary
     # summary(hybrid_classifier_model, (128, 16, 16))
     predictions = hybrid_classifier.predict(z[1])
-    accuracy = np.sum(np.argmax(predictions, -1) == y[1])/ len(y[1])
-    print("Accuracy on benign test examples(from reconstructed): {}%".format(accuracy * 100))
+    r_accuracy = np.sum(np.argmax(predictions, -1) == y[1])/ len(y[1])
+    # print("Accuracy on benign test examples(from reconstructed): {}%".format(r_accuracy * 100))
 
-    return classifier, hybrid_classifier, accuracy
+    return classifier, hybrid_classifier, accuracy, r_accuracy
 
 def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, autoencoder_model, kwargs, conditionals):
     result = {}
@@ -146,7 +146,9 @@ def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, 
         # ------------------------------------------------- #
         if conditionals["calculate_original"]:
             attack = attack_name(classifier, **kwargs)
+            start = time.time()
             x_adv = attack.generate(x=x[1])
+            orig_time = time.time() - start
             predictions = classifier.predict(x_adv)
             x_adv_acc = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
 
@@ -157,19 +159,24 @@ def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, 
             delta_x = x_adv - x[1]
             result[name]["delta_x"] = delta_x
             accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
-            print("Robust accuracy of original adversarial attack: {}%".format(accuracy * 100))
+            # print("Robust accuracy of original adversarial attack: {}%".format(accuracy * 100))
 
         # ------------------------------------------------- #
         # ---------------- Modified Attack ---------------- #
         # ------------------------------------------------- #
+        # print(**kwargs)
         modified_attack = attack_name(hybrid_classifier, **kwargs)
         if conditionals["is_class_constrained"]:
+            start = time.time()
             z_adv = modified_attack.generate(x=z[1], mask=generate_mask(
                 latent_dim=int(config["latent_shape"]),
                 n_classes=config["miscs"]["nb_classes"],
                 labels=y[1]))
+            modf_time = time.time() - start
         else:
+            start = time.time()
             z_adv = modified_attack.generate(x=z[1])
+            modf_time = time.time() - start
 
         # calculate noise
         autoencoder_model = autoencoder_model.to(config["device"])
@@ -196,7 +203,10 @@ def execute_attack(config, attack_name, x, y, z, classifier, hybrid_classifier, 
         # send combined noise
         result[name]["delta_x_hat"] = delta_x_hat.cpu().detach().numpy()
 
-        print("Robust accuracy of modified adversarial attack: {}%".format(modf_x_adv_acc * 100))
-        print("Robust accuracy of reconstructed adversarial attack: {}%".format(x_hat_adv_acc * 100))
+        result[name]["orig_time"] = orig_time
+        result[name]["modf_time"] = modf_time
+
+        # print("Robust accuracy of modified adversarial attack: {}%".format(modf_x_adv_acc * 100))
+        # print("Robust accuracy of reconstructed adversarial attack: {}%".format(x_hat_adv_acc * 100))
 
     return result

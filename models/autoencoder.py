@@ -7,29 +7,27 @@ sys.path.append("..")
 
 import torch
 import torchvision
+import pytorch_lightning as pl
+import torch.nn.functional as F
+import matplotlib.pyplot as plt
+
 from typing import Any, Callable
 
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps")
-
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import plotly.express as px
-import pytorch_lightning as pl
-import torch
-import torch.nn.functional as F
-
-from torchmetrics.functional import accuracy
-from sklearn.manifold import TSNE
 from torch import nn
 from torchviz import make_dot
+from sklearn.manifold import TSNE
+from pl_bolts.models.autoencoders import AE
+from torchmetrics.functional import accuracy
 from pl_bolts.models.autoencoders.components import (
     resnet18_decoder,
     resnet18_encoder,
 )
-from pl_bolts.models.autoencoders import AE
 
-from dataloader import load_celeba, load_cifar, load_fashion_mnist, load_mnist
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps")
+
+from dataloader import (load_celeba, load_cifar,
+                        load_fashion_mnist,
+                        load_mnist)
 from utils import visualize_cifar_reconstructions
 from models.classifier import CIFAR10Classifier
 
@@ -882,6 +880,51 @@ class CIFAR10LightningAutoencoder(AE):
         return loss, {"loss": loss}
 
 
+class CIFAR10NoisyLightningAutoencoder(AE):
+    def __init__(self, input_height=32):
+
+        super().__init__(input_height=input_height)
+        self.cls_model = CIFAR10Classifier.load_from_checkpoint("./lightning_logs/cifar10_classifier/checkpoints/epoch=49-step=35150.ckpt")
+        self.cls_model.eval()
+
+    def get_z(self, x: torch.Tensor) -> torch.Tensor:
+        feats = self.encoder(x)
+        z = self.fc(feats)
+
+        return z
+    
+    def get_x_hat(self, z: torch.Tensor) -> torch.Tensor:
+        x_hat = self.decoder(z)
+
+        return x_hat
+    
+    def forward(self, x):
+        feats = self.encoder(x)
+        z = self.fc(feats)
+        z = z + torch.randn_like(z)
+        x_hat = self.decoder(z)
+
+        return x_hat, z
+    
+    def step(self, batch, batch_idx):
+        x, y = batch
+
+        feats = self.encoder(x)
+        z = self.fc(feats)
+        x_hat = self.decoder(z)
+
+        recon_loss = F.mse_loss(x_hat, x, reduction="mean")
+        
+        # classifier loss
+
+        logits = self.cls_model(x)
+        cls_loss = F.nll_loss(logits, y)
+
+        loss = recon_loss + cls_loss
+
+        return loss, {"loss": loss}
+
+
 class CelebAAutoencoder(BaseAutoEncoder):
     """
     This is an implementation of the autoencoder for CelebA
@@ -1166,7 +1209,7 @@ if __name__ == "__main__":
         plt.imshow(grid)
         plt.axis('off')
         plt.show()
-        plt.savefig("../img/mnist_cnn_ae")
+        plt.savefig("../img/mnist_ann_ae")
     
     def plot_recons_with_latent_codes(x, x_hat, z):
         plt.subplot(1,3,1)
@@ -1235,15 +1278,15 @@ if __name__ == "__main__":
     """
     Testing CIFAR10 Lightning
     """
-    model = CIFAR10LightningAutoencoder()
-    model = model.from_pretrained('cifar10-resnet18')
+    # model = CIFAR10LightningAutoencoder()
+    # model = model.from_pretrained('cifar10-resnet18')
 
-    train_dataloader, valid_dataloader, test_dataloader = load_cifar(
-        root="~/scratch/datasets/CIFAR10/", batch_size=128
-    )
+    # train_dataloader, valid_dataloader, test_dataloader = load_cifar(
+    #     root="~/scratch/datasets/CIFAR10/", batch_size=128
+    # )
 
-    trainer = pl.Trainer(max_epochs=200, accelerator="gpu", default_root_dir="..")
-    trainer.fit(model, train_dataloader, valid_dataloader)
+    # trainer = pl.Trainer(max_epochs=200, accelerator="gpu", default_root_dir="..")
+    # trainer.fit(model, train_dataloader, valid_dataloader)
 
     # Testing
     # trainer = pl.Trainer()
@@ -1261,24 +1304,24 @@ if __name__ == "__main__":
     """
     Testing MNIST autoencoder
     """
-    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(
-    #     root="~/scratch/datasets/MNIST/", batch_size=128
-    # )
-    # model = ANNAutoencoder()
-    # trainer = pl.Trainer(max_epochs=20, accelerator="mps", default_root_dir="..")
+    train_dataloader, valid_dataloader, test_dataloader = load_mnist(
+        root="~/scratch/datasets/MNIST/", batch_size=128
+    )
+    model = ANNAutoencoder()
+    trainer = pl.Trainer(max_epochs=20, accelerator="cuda", default_root_dir="..")
     # trainer.fit(model, train_dataloader, valid_dataloader)    
 
-    # # model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/mnist_ae_mse/checkpoints/epoch=9-step=9370.ckpt")
-    # model.eval()
+    model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/mnist_ae_mse/checkpoints/checkpoint.ckpt")
+    model.eval()
 
-    # # Reconstruct
-    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(
-    #     root="~/scratch/datasets/MNIST/", batch_size=10
-    # )
-    # x, _ = next(iter(test_dataloader))
-    # x_hat, _ = model(x)
-    # images = torch.cat((x, x_hat), 0)
-    # plot_recons(images=images, reshape=(-1, 1, 28, 28))
+    # Reconstruct
+    train_dataloader, valid_dataloader, test_dataloader = load_mnist(
+        root="~/scratch/datasets/MNIST/", batch_size=10
+    )
+    x, _ = next(iter(test_dataloader))
+    x_hat, _ = model(x)
+    images = torch.cat((x, x_hat), 0)
+    plot_recons(images=images, reshape=(-1, 1, 28, 28))
 
     """
     Testing MNIST CNN autoencoder

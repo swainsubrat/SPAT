@@ -1,20 +1,34 @@
 import numpy as np
 
 from art.attacks.evasion import (FastGradientMethod, DeepFool,
-                CarliniLInfMethod, BasicIterativeMethod,
+                CarliniL2Method, BasicIterativeMethod,
                 ProjectedGradientDescentPyTorch, ZooAttack,
-                HopSkipJump, SaliencyMapMethod)
+                HopSkipJump, SaliencyMapMethod, ElasticNet,
+                FeatureAdversariesPyTorch, FrameSaliencyAttack,
+                GeoDA, PixelAttack, ThresholdAttack,
+                SignOPTAttack, SimBA, SpatialTransformation,
+                SquareAttack)
 
 ATTACK_MAPPINGS = {
     "all" : "all",
     "fgsm": FastGradientMethod,
     "pgd" : ProjectedGradientDescentPyTorch,
-    "cnw" : CarliniLInfMethod,
+    "cnw" : CarliniL2Method,
     "bim" : BasicIterativeMethod,
     "deepfool" : DeepFool,
     "zoo": ZooAttack,
     "hopskipjump": HopSkipJump,
-    "jsma": SaliencyMapMethod
+    "jsma": SaliencyMapMethod,
+    "elastic": ElasticNet,
+    # "featureadv": FeatureAdversariesPyTorch,
+    # "framesilency": FrameSaliencyAttack,
+    # "geoda": GeoDA,
+    # "pixel": PixelAttack,
+    # "threshold": ThresholdAttack,
+    "signopt": SignOPTAttack,
+    # "simba": SimBA,
+    # "spatial": SpatialTransformation,
+    # "square": SquareAttack
 }
 
 def generate_mask(latent_dim, n_classes, labels):

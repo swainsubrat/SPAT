@@ -131,3 +131,12 @@ data/
 models/mnist_enc_dec.pth.tar
 models/membership_enc_dec.pth.tar
 lightning_logs/celeba_classifier/checkpoints/epoch=9-step=202600.ckpt
+lightning_logs/cifar10_ae_nll/events.out.tfevents.1676273381.vision-desktop.38041.0
+lightning_logs/cifar10_ae_nll/hparams.yaml
+.gitignore
+models/cifar10/Linf/Carmon2019Unlabeled.pt
+lightning_logs/cifar10_ae_nll/checkpoints/epoch=199-step=70200.ckpt
+models/cifar10/Linf/Rice2020Overfitting.pt
+objects/cifar10.pkl
+lightning_logs/version_39/checkpoints/epoch=199-step=70200.ckpt
+models/cifar10/
