@@ -7,6 +7,7 @@ sys.path.append("..")
 
 import torch
 import torchvision
+import numpy as np
 import pytorch_lightning as pl
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
@@ -16,6 +17,7 @@ from typing import Any, Callable
 from torch import nn
 from torchviz import make_dot
 from sklearn.manifold import TSNE
+import torchvision.transforms as transforms
 from pl_bolts.models.autoencoders import AE
 from torchmetrics.functional import accuracy
 from pl_bolts.models.autoencoders.components import (
@@ -27,9 +29,10 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mp
 
 from dataloader import (load_celeba, load_cifar,
                         load_fashion_mnist,
-                        load_mnist)
+                        load_mnist, load_imagenet)
 from utils import visualize_cifar_reconstructions
 from models.classifier import CIFAR10Classifier
+from vgg_imagenet import VGGEncoder, VGGDecoder, get_configs
 
 
 def double_conv(in_channels, out_channels):
@@ -1189,6 +1192,18 @@ class CelebAAutoencoderNew(BaseAutoEncoder):
         # return {"optimizer": optimizer, "lr_scheduler": scheduler, "monitor": "valid_loss"}
 
 
+class ImagenetAutoencoder(BaseAutoEncoder):
+    def __init__(self, configs) -> None:
+        self.configs = configs
+        super(ImagenetAutoencoder, self).__init__()
+
+    def define_encoder(self):
+        self.encoder = VGGEncoder(configs=self.configs, enable_bn=True)
+
+    def define_decoder(self):
+        self.decoder = VGGDecoder(configs=self.configs[::-1], enable_bn=True)
+
+
 if __name__ == "__main__":
 
     """
@@ -1210,7 +1225,7 @@ if __name__ == "__main__":
         plt.axis('off')
         plt.show()
         plt.savefig("../img/mnist_ann_ae")
-    
+
     def plot_recons_with_latent_codes(x, x_hat, z):
         plt.subplot(1,3,1)
         plt.title("Original")
@@ -1250,6 +1265,50 @@ if __name__ == "__main__":
     # # plt.savefig(f"../img/celeba_reconstruction1.png", dpi=1000)
     # # plt.show()
     # visualize_cifar_reconstructions(input_imgs, reconst_imgs, file_name="celeba_ae_mse_recon")
+    """
+    Testing Imagenet autoencoder
+    """
+    import os
+
+    # TODO: Use root in the dataloader file
+    config = get_configs()
+    # model = nn.DataParallel(ImagenetAutoencoder(config))
+    model = ImagenetAutoencoder(config)
+
+    # Testing
+    train_dataloader = load_imagenet(
+        root="/home/harsh/scratch/datasets/IMAGENET/", batch_size=1
+    )
+    images, labels = next(iter(train_dataloader))
+    images, labels = images.to(device), labels.to(device)
+    checkpoint = torch.load("/home/harsh/scratch/models/imagenet-vgg16.pth")
+
+    new_state_dict = {}
+    for key, value in checkpoint["state_dict"].items():
+        if key.startswith('module.'):
+            new_key = key[7:] # remove "module." prefix
+        else:
+            new_key = key
+        new_state_dict[new_key] = value
+
+    model.load_state_dict(new_state_dict)
+    model = model.to(device)
+    # model.eval()
+
+    with torch.no_grad():
+        reconst_img, _ = model(images)
+    mean = torch.tensor([0.485, 0.456, 0.406]).to(device)
+    std = torch.tensor([0.229, 0.224, 0.225]).to(device)
+
+    denormalize = transforms.Normalize(mean=[-m/s for m, s in zip(mean, std)], std=[1/s for s in std])
+    images_normalized = denormalize(images)
+
+    # reconst_img = torch.tensor((reconst_img.cpu().detach().numpy() * 255).astype(np.uint8)).to(device)
+    # reconst_img = reconst_img * std + mean
+    # reconst_img = torch.clamp(reconst_img, 0, 1)
+    print(reconst_img.min(), reconst_img.max())
+    print(images_normalized.min(), images_normalized.max())
+    visualize_cifar_reconstructions(images_normalized, reconst_img, file_name="imagenet_vgg16")
 
     """
     Testing CIFAR autoencoder
@@ -1304,24 +1363,24 @@ if __name__ == "__main__":
     """
     Testing MNIST autoencoder
     """
-    train_dataloader, valid_dataloader, test_dataloader = load_mnist(
-        root="~/scratch/datasets/MNIST/", batch_size=128
-    )
-    model = ANNAutoencoder()
-    trainer = pl.Trainer(max_epochs=20, accelerator="cuda", default_root_dir="..")
-    # trainer.fit(model, train_dataloader, valid_dataloader)    
+    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(
+    #     root="~/scratch/datasets/MNIST/", batch_size=128
+    # )
+    # model = ANNAutoencoder()
+    # trainer = pl.Trainer(max_epochs=20, accelerator="cuda", default_root_dir="..")
+    # # trainer.fit(model, train_dataloader, valid_dataloader)    
 
-    model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/mnist_ae_mse/checkpoints/checkpoint.ckpt")
-    model.eval()
+    # model = ANNAutoencoder.load_from_checkpoint("../lightning_logs/mnist_ae_mse/checkpoints/checkpoint.ckpt")
+    # model.eval()
 
-    # Reconstruct
-    train_dataloader, valid_dataloader, test_dataloader = load_mnist(
-        root="~/scratch/datasets/MNIST/", batch_size=10
-    )
-    x, _ = next(iter(test_dataloader))
-    x_hat, _ = model(x)
-    images = torch.cat((x, x_hat), 0)
-    plot_recons(images=images, reshape=(-1, 1, 28, 28))
+    # # Reconstruct
+    # train_dataloader, valid_dataloader, test_dataloader = load_mnist(
+    #     root="~/scratch/datasets/MNIST/", batch_size=10
+    # )
+    # x, _ = next(iter(test_dataloader))
+    # x_hat, _ = model(x)
+    # images = torch.cat((x, x_hat), 0)
+    # plot_recons(images=images, reshape=(-1, 1, 28, 28))
 
     """
     Testing MNIST CNN autoencoder

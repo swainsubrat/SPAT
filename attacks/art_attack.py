@@ -33,8 +33,10 @@ def get_models(args):
     with open(f"./configs/{dataset_name}.yml", "r") as f:
         config = yaml.safe_load(f)
 
-    config["device"]       = torch.device(args.device)
-    config["dataset_name"] = dataset_name + str(args.dataset_len)
+    config["device"] = torch.device(args.device)
+    config["dataset_name"] = dataset_name
+    if args.dataset_len:
+        config["dataset_name"] = dataset_name + str(args.dataset_len)
 
     classifier_path = config["classifiers"][args.model_name]
     autoencoder_path = config["autoencoders"][args.ae_name]
@@ -42,11 +44,25 @@ def get_models(args):
     classifier_model_class = MODEL_MAPPINGS[classifier_path]
     autoencoder_model_class = MODEL_MAPPINGS[autoencoder_path]
 
-    classifier_model = classifier_model_class.load_from_checkpoint(classifier_path).to(args.device)
-    autoencoder_model = autoencoder_model_class.load_from_checkpoint(autoencoder_path).to(args.device)
+    if dataset_name == "imagenet":
+        classifier_model = classifier_model_class()
+        autoencoder_model = autoencoder_model_class(configs=[2, 2, 3, 3, 3])
+        checkpoint = torch.load(autoencoder_path)
+        new_state_dict = {}
+        for key, value in checkpoint["state_dict"].items():
+            if key.startswith('module.'):
+                new_key = key[7:] # remove "module." prefix
+            else:
+                new_key = key
+            new_state_dict[new_key] = value
+        autoencoder_model.load_state_dict(new_state_dict)
+        autoencoder_model = autoencoder_model.to(args.device)
+    else:
+        classifier_model = classifier_model_class.load_from_checkpoint(classifier_path).to(args.device)
+        autoencoder_model = autoencoder_model_class.load_from_checkpoint(autoencoder_path).to(args.device)
 
     classifier_model.eval()
-    autoencoder_model.eval()
+    # autoencoder_model.eval()
 
     return classifier_model, autoencoder_model, config
 
@@ -74,7 +90,7 @@ def hybridize(x, y, z, config, classifier_model, autoencoder_model):
         # clip_values=(min_pixel_value, max_pixel_value),
         loss=criterion,
         # optimizer=optimizer,
-        input_shape=(1, config["latent_shape"]),
+        input_shape=(1,) + config["latent_shape"],
         nb_classes=miscs["nb_classes"],
     )
 

@@ -55,7 +55,8 @@ def save_checkpoint_autoencoder_new(epoch, model, optimizer, path):
 
 def visualize_cifar_reconstructions(input_imgs, reconst_imgs, file_name):
     imgs = torch.stack([input_imgs, reconst_imgs], dim=1).flatten(0, 1)
-    grid = torchvision.utils.make_grid(imgs, nrow=4, normalize=True, range=(-1, 1))
+    imgs = imgs.cpu().detach()
+    grid = torchvision.utils.make_grid(imgs, nrow=4, normalize=False, range=(0, 255))
     grid = grid.permute(1, 2, 0)
     plt.figure(figsize=(7, 4.5))
     plt.title("Reconstructed image from the latent codes")

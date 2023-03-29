@@ -10,11 +10,12 @@ import pytorch_lightning as pl
 import torch.nn.functional as F
 
 from torch import logit, nn
-from torchvision.models import inceptionv3, Inception_V3_Weights
+from torchvision.models import inception_v3, Inception_V3_Weights
 from torchmetrics.functional import accuracy
-from dataloader import load_celeba, load_mnist, load_cifar, load_fashion_mnist
+from dataloader import load_celeba, load_mnist, load_cifar, load_fashion_mnist, load_imagenet
 from torch.optim.lr_scheduler import OneCycleLR
 
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps")
 
 class MNISTClassifier(pl.LightningModule):
     """
@@ -255,7 +256,7 @@ class ImagenetClassifier(pl.LightningModule):
         self.batch_size = batch_size
         # self.criterion = nn.CrossEntropyLoss()
 
-        self.model = inceptionv3(weights=Inception_V3_Weights.IMAGENET1K_V1, num_classes=10)
+        self.model = inception_v3(weights=Inception_V3_Weights.IMAGENET1K_V1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.model(x)
@@ -272,9 +273,10 @@ class ImagenetClassifier(pl.LightningModule):
     def evaluate(self, batch, stage=None):
         x, y = batch
         logits = self(x)
+        # import pdb; pdb.set_trace()
         loss = F.nll_loss(logits, y)
         preds = torch.argmax(logits, dim=1)
-        acc = accuracy(preds, y)
+        acc = accuracy(preds, y, task="multiclass", num_classes=1000)
 
         if stage:
             self.log(f"{stage}_loss", loss, prog_bar=True)
@@ -394,6 +396,25 @@ if __name__ == "__main__":
 
     import os    
     os.environ["CUDA_VISIBLE_DEVICES"] = "4, 3"
+    """
+    Imagenet classifier testing
+    """
+    model = inception_v3(weights=Inception_V3_Weights.IMAGENET1K_V1).to(torch.device("cpu"))
+    model.eval()
+
+    # Testing
+    train_dataloader = load_imagenet(
+        root="/home/harsh/scratch/datasets/IMAGENET/", batch_size=32
+    )
+    images, labels = next(iter(train_dataloader))
+    preds = model(images)
+
+    # Testing lighting model
+    model = ImagenetClassifier()
+    model.eval()
+    trainer = pl.Trainer(max_epochs=50, accelerator="cpu", devices=1, default_root_dir="..", enable_checkpointing=False) 
+    p = trainer.test(model, dataloaders=train_dataloader)
+    print(p)
     """
     MNIST CNN classifier testing
     """

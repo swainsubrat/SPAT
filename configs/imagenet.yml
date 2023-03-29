@@ -1,0 +1,20 @@
+model: IMAGENET
+dataset_path:
+
+classifiers:
+  imagenet_inceptionv3: "none"
+autoencoders:
+  vgg_16: "/home/harsh/scratch/models/imagenet-vgg16.pth"
+
+miscs:
+  nb_classes: 1000
+  min_pixel_value: -2.117904
+  max_pixel_value: 2.248908
+  reshape:
+    - 3
+    - 224
+    - 224
+  input_shape:
+    - 3
+    - 224
+    - 224
