@@ -32,7 +32,7 @@ from dataloader import (load_celeba, load_cifar,
                         load_mnist, load_imagenet)
 from utils import visualize_cifar_reconstructions
 from models.classifier import CIFAR10Classifier
-from vgg_imagenet import VGGEncoder, VGGDecoder, get_configs
+from .vgg_imagenet import VGGEncoder, VGGDecoder, get_configs
 
 
 def double_conv(in_channels, out_channels):
@@ -1241,7 +1241,7 @@ if __name__ == "__main__":
         plt.show()
     # import torchsummary
 
-    # os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "7"
     # train_dataloader, valid_dataloader, test_dataloader = load_celeba(batch_size=64)
     
     # model = CelebAAutoencoderNew(lr=1e-5)
@@ -1268,47 +1268,48 @@ if __name__ == "__main__":
     """
     Testing Imagenet autoencoder
     """
-    import os
+    # import os
 
-    # TODO: Use root in the dataloader file
-    config = get_configs()
-    # model = nn.DataParallel(ImagenetAutoencoder(config))
-    model = ImagenetAutoencoder(config)
+    # # TODO: Use root in the dataloader file
+    # config = get_configs()
+    # # model = nn.DataParallel(ImagenetAutoencoder(config))
+    # model = ImagenetAutoencoder(config)
 
-    # Testing
-    train_dataloader = load_imagenet(
-        root="/home/harsh/scratch/datasets/IMAGENET/", batch_size=1
-    )
-    images, labels = next(iter(train_dataloader))
-    images, labels = images.to(device), labels.to(device)
-    checkpoint = torch.load("/home/harsh/scratch/models/imagenet-vgg16.pth")
+    # # Testing
+    # train_dataloader = load_imagenet(
+    #     root="/home/harsh/scratch/datasets/IMAGENET/", batch_size=1
+    # )
+    # images, labels = next(iter(train_dataloader))
+    # images, labels = images.to(device), labels.to(device)
+    # checkpoint = torch.load("/home/harsh/scratch/models/imagenet-vgg16.pth")
 
-    new_state_dict = {}
-    for key, value in checkpoint["state_dict"].items():
-        if key.startswith('module.'):
-            new_key = key[7:] # remove "module." prefix
-        else:
-            new_key = key
-        new_state_dict[new_key] = value
+    # new_state_dict = {}
+    # for key, value in checkpoint["state_dict"].items():
+    #     if key.startswith('module.'):
+    #         new_key = key[7:] # remove "module." prefix
+    #     else:
+    #         new_key = key
+    #     new_state_dict[new_key] = value
 
-    model.load_state_dict(new_state_dict)
-    model = model.to(device)
-    # model.eval()
+    # model.load_state_dict(new_state_dict)
+    # model = model.to(device)
+    # # model.eval()
 
-    with torch.no_grad():
-        reconst_img, _ = model(images)
-    mean = torch.tensor([0.485, 0.456, 0.406]).to(device)
-    std = torch.tensor([0.229, 0.224, 0.225]).to(device)
+    # with torch.no_grad():
+    #     reconst_img, _ = model(images)
+    # mean = torch.tensor([0.485, 0.456, 0.406]).to(device)
+    # std = torch.tensor([0.229, 0.224, 0.225]).to(device)
 
-    denormalize = transforms.Normalize(mean=[-m/s for m, s in zip(mean, std)], std=[1/s for s in std])
-    images_normalized = denormalize(images)
+    # denormalize = transforms.Normalize(mean=[-m/s for m, s in zip(mean, std)], std=[1/s for s in std])
+    # images_normalized = denormalize(images)
 
     # reconst_img = torch.tensor((reconst_img.cpu().detach().numpy() * 255).astype(np.uint8)).to(device)
-    # reconst_img = reconst_img * std + mean
-    # reconst_img = torch.clamp(reconst_img, 0, 1)
-    print(reconst_img.min(), reconst_img.max())
-    print(images_normalized.min(), images_normalized.max())
-    visualize_cifar_reconstructions(images_normalized, reconst_img, file_name="imagenet_vgg16")
+    # images_normalized = torch.tensor((images_normalized.cpu().detach().numpy() * 255).astype(np.uint8)).to(device)
+    # # reconst_img = reconst_img * std + mean
+    # # reconst_img = torch.clamp(reconst_img, 0, 1)
+    # print(reconst_img.min(), reconst_img.max())
+    # print(images_normalized.min(), images_normalized.max())
+    # visualize_cifar_reconstructions(images_normalized, reconst_img, file_name="imagenet_vgg16_255")
 
     """
     Testing CIFAR autoencoder
