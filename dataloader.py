@@ -163,7 +163,7 @@ def load_fashion_mnist(batch_size: int=64, root: str="~/scratch/datasets/Fashion
 
     return train_dataloader, valid_dataloader, test_dataloader
 
-def load_gtsrb(batch_size: int=64, root: str="/home/harsh/scratch/datasets/GTSRB/"):
+def load_gtsrb(batch_size: int=64, root: str="/home/sweta/scratch/datasets/GTSRB/"):
     """
     Load GTSRB data
     """
@@ -184,7 +184,7 @@ def load_gtsrb(batch_size: int=64, root: str="/home/harsh/scratch/datasets/GTSRB
 
     return train_dataloader, valid_dataloader, test_dataloader
 
-def load_imagenet(batch_size: int=32, root: str="/home/harsh/scratch/datasets/IMAGENET"):
+def load_imagenet(batch_size: int=32, root: str="/home/sweta/scratch/datasets/IMAGENET"):
     """
     Load Imagenet data
     """
@@ -199,8 +199,8 @@ def load_imagenet(batch_size: int=32, root: str="/home/harsh/scratch/datasets/IM
     ])
     
     train_data = ImagenetDataset(
-        inverse_label_path="/home/harsh/scratch/datasets/IMAGENET/labels/inverse_labels.txt",
-        img_dir="/home/harsh/scratch/datasets/IMAGENET/images/",
+        inverse_label_path="/home/sweta/scratch/datasets/IMAGENET/labels/inverse_labels.txt",
+        img_dir="/home/sweta/scratch/datasets/IMAGENET/images/",
         transform=transform
     )
 
