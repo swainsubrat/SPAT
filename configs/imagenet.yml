@@ -4,7 +4,7 @@ dataset_path:
 classifiers:
   imagenet_inceptionv3: "none"
 autoencoders:
-  vgg_16: "/home/harsh/scratch/models/imagenet-vgg16.pth"
+  vgg_16: "/home/sweta/scratch/models/imagenet-vgg16.pth"
 
 miscs:
   nb_classes: 1000

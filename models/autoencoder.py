@@ -32,7 +32,7 @@ from dataloader import (load_celeba, load_cifar,
                         load_mnist, load_imagenet)
 from utils import visualize_cifar_reconstructions
 from models.classifier import CIFAR10Classifier
-from vgg_imagenet import VGGEncoder, VGGDecoder, get_configs
+from .vgg_imagenet import VGGEncoder, VGGDecoder, get_configs
 
 
 def double_conv(in_channels, out_channels):
@@ -1277,11 +1277,11 @@ if __name__ == "__main__":
 
     # Testing
     train_dataloader = load_imagenet(
-        root="/home/harsh/scratch/datasets/IMAGENET/", batch_size=1
+        root="/home/sweta/scratch/datasets/IMAGENET/", batch_size=1
     )
     images, labels = next(iter(train_dataloader))
     images, labels = images.to(device), labels.to(device)
-    checkpoint = torch.load("/home/harsh/scratch/models/imagenet-vgg16.pth")
+    checkpoint = torch.load("/home/sweta/scratch/models/imagenet-vgg16.pth")
 
     new_state_dict = {}
     for key, value in checkpoint["state_dict"].items():

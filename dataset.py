@@ -30,7 +30,7 @@ class ImagenetDataset(Dataset):
         if img.shape == (1, 224, 224):
             img = torch.cat([img]*3, dim=0)
         
-        img = self.normalize(img) # for normalization after ensuring shape (3, 224, 224)
+        # img = self.normalize(img) # for normalization after ensuring shape (3, 224, 224)
 
         return img, label
 
