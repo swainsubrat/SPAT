@@ -184,7 +184,7 @@ def load_gtsrb(batch_size: int=64, root: str="/home/sweta/scratch/datasets/GTSRB
 
     return train_dataloader, valid_dataloader, test_dataloader
 
-def load_imagenet(batch_size: int=32, root: str="/home/sweta/scratch/datasets/IMAGENET"):
+def load_imagenet(batch_size: int=32, root: str="/scratch/itee/uqsswain/datasets/IMAGENET"):
     """
     Load Imagenet data
     """
@@ -199,8 +199,8 @@ def load_imagenet(batch_size: int=32, root: str="/home/sweta/scratch/datasets/IM
     ])
     
     train_data = ImagenetDataset(
-        inverse_label_path="/home/sweta/scratch/datasets/IMAGENET/labels/inverse_labels.txt",
-        img_dir="/home/sweta/scratch/datasets/IMAGENET/images/",
+        inverse_label_path="/scratch/itee/uqsswain/datasets/IMAGENET/labels/inverse_labels.txt",
+        img_dir="/scratch/itee/uqsswain/datasets/IMAGENET/images/",
         transform=transform
     )
 

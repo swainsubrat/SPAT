@@ -13,7 +13,7 @@ import yaml
 from art.attacks.evasion import DeepFool, FastGradientMethod
 from art.estimators.classification import PyTorchClassifier
 
-device = torch.device("cuda:7") if torch.cuda.is_available() else torch.device("cpu")
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 import torchvision.transforms as transforms
 from typing import Callable, Tuple, Dict
@@ -61,7 +61,7 @@ class Args:
 args = Args()
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 
 attack_name = ATTACK_MAPPINGS.get(args.attack_name)
 dataset_name = args.model_name.split("_")[0]

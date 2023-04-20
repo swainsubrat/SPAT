@@ -59,8 +59,8 @@ class Args:
 
 args = Args()
 
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+# import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 
 attack_name = ATTACK_MAPPINGS.get(args.attack_name)
 dataset_name = args.model_name.split("_")[0]
@@ -182,7 +182,7 @@ images = np.vstack([x[1][start: end], x_adv[start: end], delta_x[start: end], mo
 plot_batch(images)
 
 # save adversarial images
-fileObj = open(f"/home/sweta/scratch/objects/{dataset_name}_{args.attack_name}.pkl", 'wb')
+fileObj = open(f"/scratch/itee/uqsswain/objects/{dataset_name}_{args.attack_name}.pkl", 'wb')
 pickle.dump(result, fileObj)
 fileObj.close()
 logger.info("Saved the adversarial images!!!!")

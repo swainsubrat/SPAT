@@ -21,5 +21,5 @@ MODEL_MAPPINGS = {
     "./lightning_logs/mnist_cnn_ae/checkpoints/epoch=19-step=8580.ckpt": MNISTCNNAutoencoder,
     "./lightning_logs/version_39/checkpoints/epoch=199-step=70200.ckpt": CIFAR10NoisyLightningAutoencoder,
     "none": ImagenetClassifier,
-    "/home/sweta/scratch/models/imagenet-vgg16.pth": ImagenetAutoencoder
+    "/scratch/itee/uqsswain/models/imagenet-vgg16.pth": ImagenetAutoencoder
 }
