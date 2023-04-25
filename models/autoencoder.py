@@ -5,34 +5,31 @@ import sys
 
 sys.path.append("..")
 
-import torch
-import torchvision
-import numpy as np
-import pytorch_lightning as pl
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
-
 from typing import Any, Callable
 
-from torch import nn
-from torchviz import make_dot
-from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
+import numpy as np
+import pytorch_lightning as pl
+import torch
+import torch.nn.functional as F
+import torchvision
 import torchvision.transforms as transforms
 from pl_bolts.models.autoencoders import AE
+from pl_bolts.models.autoencoders.components import (resnet18_decoder,
+                                                     resnet18_encoder)
+from sklearn.manifold import TSNE
+from torch import nn
 from torchmetrics.functional import accuracy
-from pl_bolts.models.autoencoders.components import (
-    resnet18_decoder,
-    resnet18_encoder,
-)
+from torchviz import make_dot
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps")
 
-from dataloader import (load_celeba, load_cifar,
-                        load_fashion_mnist,
-                        load_mnist, load_imagenet)
-from utils import visualize_cifar_reconstructions
+from dataloader import (load_celeba, load_cifar, load_fashion_mnist,
+                        load_imagenet_x, load_mnist)
 from models.classifier import CIFAR10Classifier
-from .vgg_imagenet import VGGEncoder, VGGDecoder, get_configs
+from utils import visualize_cifar_reconstructions
+
+from .vgg_imagenet import VGGDecoder, VGGEncoder, get_configs
 
 
 def double_conv(in_channels, out_channels):
@@ -1276,7 +1273,7 @@ if __name__ == "__main__":
     # model = ImagenetAutoencoder(config)
 
     # # Testing
-    # train_dataloader = load_imagenet(
+    # train_dataloader = load_imagenet_x(
     #     root="/home/harsh/scratch/datasets/IMAGENET/", batch_size=1
     # )
     # images, labels = next(iter(train_dataloader))

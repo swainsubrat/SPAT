@@ -1,25 +1,28 @@
 """
 File to plot attack results and compare them visually
 """
-import yaml
 import time
-import torch
-import numpy as np
+
 import foolbox as fb
-import torch.nn.functional as F
-import pytorch_lightning as pl
 import matplotlib.pyplot as plt
+import numpy as np
+import pytorch_lightning as pl
+import torch
+import torch.nn.functional as F
+import yaml
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-from torch import nn
-from torch import Tensor
-from utils import save, load
-from typing import Tuple, Callable
+from typing import Callable, Tuple
+
+from torch import Tensor, nn
+
+from attacks.attack_new import get_embeddings, make_hybrid_model
 from dataloader import load_mnist
-from models.classifier import MNISTClassifier, CIFAR10Classifier
-from models.autoencoder import ANNAutoencoder, BaseAutoEncoder, CIFAR10Autoencoder
-from attacks.attack_new import make_hybrid_model, get_embeddings
+from models.autoencoder import (ANNAutoencoder, BaseAutoEncoder,
+                                CIFAR10Autoencoder)
+from models.classifier import CIFAR10Classifier, MNISTClassifier
+from utils import load, save
 
 # first load the config
 with open("./configs/mnist.yml", "r") as f:

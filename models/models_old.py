@@ -1,9 +1,9 @@
 """
 Pytorch implementation of the Autoencoder and other models
 """
-import torch
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
 import torch.nn.functional as F
 
 from utils import save_checkpoint_autoencoder
@@ -17,7 +17,9 @@ base_name = "cifar_autoencoder"
 
 from torch import nn
 from torchvision.utils import make_grid
+
 from dataloader import load_cifar
+
 
 def double_conv(in_channels, out_channels):
   return nn.Sequential(

@@ -1,11 +1,10 @@
-import os
-import pickle
 import argparse
 import datetime
+import os
+import pickle
 
-import numpy as np
 import matplotlib.pyplot as plt
-
+import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
@@ -15,31 +14,31 @@ from art.estimators.classification import PyTorchClassifier
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-import torchvision.transforms as transforms
-from typing import Callable, Tuple, Dict
+import logging
 from pathlib import Path
+from typing import Callable, Dict, Tuple
+
 import pytorch_lightning as pl
+import torchvision.transforms as transforms
 from torch import nn
 from tqdm import tqdm
-
-import logging
 
 logging.basicConfig(filename='app.log', filemode='a', format='%(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 logger.info('This will get logged to a file')
 
-from dataloader import load_mnist
-from models.autoencoder import (ANNAutoencoder, BaseAutoEncoder,
-                                CelebAAutoencoder, CIFAR10Autoencoder, CIFAR10VAE,
-                                CIFAR10LightningAutoencoder, CIFAR10NoisyLightningAutoencoder)
-from models.classifier import (CelebAClassifier, CIFAR10Classifier,
-                                MNISTClassifier)
-
 from attacks import ATTACK_MAPPINGS, FastGradientMethod
 from attacks.art_attack import execute_attack, get_models, get_xyz, hybridize
 from attacks.plot_attack import plot_adversarial_images, plot_robust_accuracy
-from dataloader import DATALOADER_MAPPINGS
+from dataloader import DATALOADER_MAPPINGS, load_mnist
+from models.autoencoder import (CIFAR10VAE, ANNAutoencoder, BaseAutoEncoder,
+                                CelebAAutoencoder, CIFAR10Autoencoder,
+                                CIFAR10LightningAutoencoder,
+                                CIFAR10NoisyLightningAutoencoder)
+from models.classifier import (CelebAClassifier, CIFAR10Classifier,
+                               MNISTClassifier)
+
 
 class Args:
     batch_size = 64
@@ -61,6 +60,7 @@ class Args:
 args = Args()
 
 import os
+
 # os.environ["CUDA_VISIBLE_DEVICES"] = "7"
 
 attack_name = ATTACK_MAPPINGS.get(args.attack_name)
@@ -198,10 +198,12 @@ modf_x_adv = result[attack_name.__name__]["modf_x_adv"]
 delta_x_hat = result[attack_name.__name__]["delta_x_hat"]
 
 import lpips
+
 loss_fn_alex = lpips.LPIPS(net='alex') # best forward scores
 
 # LPIPS between original and original attacks
 import torch
+
 img_orig = torch.Tensor(x_adv) # image should be RGB, IMPORTANT: normalized to [-1,1]
 img_modf = torch.Tensor(x_hat_adv)
 # img_modf = torch.Tensor(modf_x_adv)

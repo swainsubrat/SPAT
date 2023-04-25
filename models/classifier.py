@@ -2,18 +2,20 @@
 Pytorch-Lightning implementation of the classifier
 """
 import sys
+
 sys.path.append("..")
 
-import torch
-import torchvision
 import pytorch_lightning as pl
+import torch
 import torch.nn.functional as F
-
+import torchvision
 from torch import logit, nn
-from torchvision.models import inception_v3, Inception_V3_Weights
-from torchmetrics.functional import accuracy
-from dataloader import load_celeba, load_mnist, load_cifar, load_fashion_mnist, load_imagenet
 from torch.optim.lr_scheduler import OneCycleLR
+from torchmetrics.functional import accuracy
+from torchvision.models import Inception_V3_Weights, inception_v3
+
+from dataloader import (load_celeba, load_cifar, load_fashion_mnist,
+                        load_imagenet_x, load_mnist)
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("mps")
 
@@ -403,7 +405,7 @@ if __name__ == "__main__":
     model.eval()
 
     # Testing
-    train_dataloader = load_imagenet(
+    train_dataloader = load_imagenet_x(
         root="/home/harsh/scratch/datasets/IMAGENET/", batch_size=32
     )
     images, labels = next(iter(train_dataloader))

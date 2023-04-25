@@ -1,10 +1,29 @@
+import os
+import datetime
+import pickle
+from typing import Dict, List
+
+import logging
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torchvision
-import numpy as np
-import pickle
-import matplotlib.pyplot as plt
 
-from typing import List, Dict
+def set_logger(args):
+    dataset_name = args.model_name.split("_")[0]
+    log_folder = f"logs/{dataset_name}"
+    if not os.path.exists(log_folder):
+        os.makedirs(log_folder)
+
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    log_filename = f"{log_folder}/{args.attack_name}.log"
+    logging.basicConfig(filename=log_filename, filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    logger.info(f"----------------------------- {current_time} -----------------------------")
+    logger.info('Initialised logger!!!!')
+
+    return logger
 
 def accuracy(Y: List, predY: List) -> float:
     """

@@ -1,9 +1,12 @@
-from models.autoencoder import (ANNAutoencoder, ClassConstrainedANNAutoencoder,
-                                CelebAAutoencoder, CIFAR10Autoencoder, CIFAR10VAE,
-                                CIFAR10LightningAutoencoder, MNISTCNNAutoencoder,
-                                CIFAR10NoisyLightningAutoencoder, ImagenetAutoencoder)
-from models.classifier import (MNISTClassifier, CelebAClassifier, CIFAR10Classifier,
-                               MNISTCNNClassifier, ImagenetClassifier)
+from models.autoencoder import (CIFAR10VAE, ANNAutoencoder, CelebAAutoencoder,
+                                CIFAR10Autoencoder,
+                                CIFAR10LightningAutoencoder,
+                                CIFAR10NoisyLightningAutoencoder,
+                                ClassConstrainedANNAutoencoder,
+                                ImagenetAutoencoder, MNISTCNNAutoencoder)
+from models.classifier import (CelebAClassifier, CIFAR10Classifier,
+                               ImagenetClassifier, MNISTClassifier,
+                               MNISTCNNClassifier)
 
 MODEL_MAPPINGS = {
     "./lightning_logs/mnist_classifier/checkpoints/epoch=9-step=9370.ckpt": MNISTClassifier,
