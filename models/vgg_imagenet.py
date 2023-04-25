@@ -1,11 +1,12 @@
+import sys
+
 import torch
 import torch.nn as nn
 
-import sys
-
 sys.path.append("..")
 
-from dataloader import load_imagenet
+from dataloader import load_imagenet_x
+
 
 def get_configs(arch='vgg16'):
 
@@ -257,7 +258,7 @@ if __name__ == "__main__":
     model = nn.DataParallel(VGGAutoEncoder(configs))
 
     # Testing
-    train_dataloader = load_imagenet(
+    train_dataloader = load_imagenet_x(
         root="/home/harsh/scratch/datasets/IMAGENET/", batch_size=1
     )
     data = next(iter(train_dataloader))

@@ -1,11 +1,12 @@
-import torch
 import pandas as pd
 import plotly.express as px
+import torch
 
 # device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 device = torch.device("cpu")
 
 from sklearn.manifold import TSNE
+
 from dataloader import load_cifar
 from models.autoencoder import CIFAR10Autoencoder
 

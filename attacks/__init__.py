@@ -1,34 +1,18 @@
 import numpy as np
+from art.attacks.evasion import (BasicIterativeMethod, CarliniL2Method,
+                                 DeepFool, ElasticNet, FastGradientMethod,
+                                 ProjectedGradientDescentPyTorch)
 
-from art.attacks.evasion import (FastGradientMethod, DeepFool,
-                CarliniL2Method, BasicIterativeMethod,
-                ProjectedGradientDescentPyTorch, ZooAttack,
-                HopSkipJump, SaliencyMapMethod, ElasticNet,
-                FeatureAdversariesPyTorch, FrameSaliencyAttack,
-                GeoDA, PixelAttack, ThresholdAttack,
-                SignOPTAttack, SimBA, SpatialTransformation,
-                SquareAttack)
+# from .art_attack import get_xyz, get_models, hybridize, execute_attack
+# from .plot_attack import plot_lips, plot_robust_accuracy
 
 ATTACK_MAPPINGS = {
-    "all" : "all",
     "fgsm": FastGradientMethod,
     "pgd" : ProjectedGradientDescentPyTorch,
     "cnw" : CarliniL2Method,
     "bim" : BasicIterativeMethod,
     "deepfool" : DeepFool,
-    "zoo": ZooAttack,
-    "hopskipjump": HopSkipJump,
-    "jsma": SaliencyMapMethod,
     "elastic": ElasticNet,
-    # "featureadv": FeatureAdversariesPyTorch,
-    # "framesilency": FrameSaliencyAttack,
-    # "geoda": GeoDA,
-    # "pixel": PixelAttack,
-    # "threshold": ThresholdAttack,
-    "signopt": SignOPTAttack,
-    # "simba": SimBA,
-    # "spatial": SpatialTransformation,
-    # "square": SquareAttack
 }
 
 def generate_mask(latent_dim, n_classes, labels):
@@ -48,3 +32,12 @@ def generate_mask(latent_dim, n_classes, labels):
     masks = np.array(masks).astype("bool")
 
     return masks
+
+# __all__ = [
+#     "get_xyz",
+#     "get_models",
+#     "hybridize",
+#     "execute_attack",
+#     "plot_lpips",
+#     "plot_robust_accuracy",
+# ]
