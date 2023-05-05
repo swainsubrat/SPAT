@@ -1,12 +1,14 @@
-from models.autoencoder import (CIFAR10VAE, ANNAutoencoder, CelebAAutoencoder,
+from models.autoencoder import (CIFAR10VAE, ANNAutoencoder,
                                 CIFAR10Autoencoder,
                                 CIFAR10LightningAutoencoder,
                                 CIFAR10NoisyLightningAutoencoder,
                                 ClassConstrainedANNAutoencoder,
-                                ImagenetAutoencoder, MNISTCNNAutoencoder)
+                                ImagenetAutoencoder, MNISTCNNAutoencoder,
+                                CelebAAutoencoderNew, GTSRBAutoencoder)
 from models.classifier import (CelebAClassifier, CIFAR10Classifier,
                                ImagenetClassifier, MNISTClassifier,
-                               MNISTCNNClassifier)
+                               MNISTCNNClassifier, CelebAClassifier,
+                               GTSRBClassifier)
 
 MODEL_MAPPINGS = {
     "./lightning_logs/mnist_classifier/checkpoints/epoch=9-step=9370.ckpt": MNISTClassifier,
@@ -16,7 +18,7 @@ MODEL_MAPPINGS = {
     "./lightning_logs/fmnist_classifier/checkpoints/epoch=49-step=42950.ckpt": MNISTClassifier,
     "./lightning_logs/fmnist_ae_mse/checkpoints/epoch=19-step=8580.ckpt": ANNAutoencoder,
     "./lightning_logs/celeba_classifier/checkpoints/epoch=4-step=11720.ckpt": CelebAClassifier,
-    "./lightning_logs/celeba_ae_mse/checkpoints/epoch=49-step=31700.ckpt": CelebAAutoencoder,
+    # "./lightning_logs/celeba_ae_mse/checkpoints/epoch=49-step=31700.ckpt": CelebAAutoencoder,
     "./lightning_logs/mnist_ccae_mse/checkpoints/checkpoint.ckpt": ClassConstrainedANNAutoencoder,
     "./lightning_logs/version_39/checkpoints/epoch=499-step=175500.ckpt": CIFAR10VAE,
     "./lightning_logs/cifar10_ae_nll/checkpoints/epoch=199-step=70200.ckpt": CIFAR10LightningAutoencoder,
@@ -24,5 +26,9 @@ MODEL_MAPPINGS = {
     "./lightning_logs/mnist_cnn_ae/checkpoints/epoch=19-step=8580.ckpt": MNISTCNNAutoencoder,
     "./lightning_logs/version_39/checkpoints/epoch=199-step=70200.ckpt": CIFAR10NoisyLightningAutoencoder,
     "none": ImagenetClassifier,
-    "/scratch/itee/uqsswain/models/imagenet-vgg16.pth": ImagenetAutoencoder
+    "/scratch/itee/uqsswain/models/imagenet-vgg16.pth": ImagenetAutoencoder,
+    "/scratch/itee/uqsswain/artifacts/spaa/classifiers/celeba/lightning_logs/version_546423/checkpoints/epoch=9-step=11720.ckpt": CelebAClassifier,
+    "/scratch/itee/uqsswain/artifacts/spaa/autoencoders/celeba/lightning_logs/version_546284/checkpoints/epoch=19-step=23440.ckpt": CelebAAutoencoderNew,
+    "/scratch/itee/uqsswain/artifacts/spaa/classifiers/gtsrb/lightning_logs/version_546496/checkpoints/epoch=24-step=4250.ckpt": GTSRBClassifier,
+    "/scratch/itee/uqsswain/artifacts/spaa/autoencoders/gtsrb/lightning_logs/version_546654/checkpoints/epoch=49-step=1100.ckpt": GTSRBAutoencoder,
 }

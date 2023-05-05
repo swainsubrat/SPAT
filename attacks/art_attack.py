@@ -14,6 +14,17 @@ from torch import nn
 from attacks import ATTACK_MAPPINGS, generate_mask
 from models import MODEL_MAPPINGS
 
+class hybrid_model(nn.Module):
+    def __init__(self, config, autoencoder_model, classifier_model):
+        super().__init__()
+        self.model = nn.Sequential(
+            autoencoder_model.decoder,
+            classifier_model.model,
+        ).to(config["device"])
+
+    def forward(self, x):
+        x = self.model(x)
+        return x.flatten()
 
 def get_xyz(args, autoencoder_model, test_dataloader):
     """
@@ -72,13 +83,17 @@ def get_models(args):
     return classifier_model, autoencoder_model, config
 
 def hybridize(x, y, z, config, classifier_model, autoencoder_model):
-    hybrid_classifier_model = nn.Sequential(
-            autoencoder_model.decoder,
-            classifier_model.model
-        ).to(config["device"])
+    if config["dataset_name"] == "celeba":
+        hybrid_classifier_model = hybrid_model(config, autoencoder_model, classifier_model)
+        criterion = nn.BCELoss()
+    else:
+        hybrid_classifier_model = nn.Sequential(
+                autoencoder_model.decoder,
+                classifier_model.model,
+            ).to(config["device"])
+        criterion = nn.CrossEntropyLoss()
 
     miscs = config["miscs"]
-    criterion = nn.CrossEntropyLoss()
     # optimizer = optim.Adam(mnist_classifier.parameters(), lr=0.01)
 
     # Step 4: Create the ART classifier
@@ -109,19 +124,20 @@ def hybridize(x, y, z, config, classifier_model, autoencoder_model):
     return classifier, hybrid_classifier, accuracy, r_accuracy
 
 def execute_attack(config, attack_name, x, y, z, classifier, 
-                   hybrid_classifier, autoencoder_model, kwargs, 
+                   hybrid_classifier, autoencoder_model, kwargs_orig, kwargs_modf,
                    conditionals):
     result = {}
     name = attack_name.__name__
     result[name] = {}
+    # import pdb; pdb.set_trace()
     
     # ------------------------------------------------- #
     # ---------------- Original Attack ---------------- #
     # ------------------------------------------------- #
     if conditionals["calculate_original"]:
-        attack = attack_name(classifier, **kwargs)
+        attack = attack_name(classifier, **kwargs_orig)
         start = time.time()
-        x_adv = attack.generate(x=x[1])
+        x_adv = attack.generate(x=x[1], y=y[1])
         orig_time = time.time() - start
         predictions = classifier.predict(x_adv)
         x_adv_acc = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
@@ -132,23 +148,22 @@ def execute_attack(config, attack_name, x, y, z, classifier,
         # calculate noise
         delta_x = x_adv - x[1]
         result[name]["delta_x"] = delta_x
-        accuracy = np.sum(np.argmax(predictions, axis=-1) == y[1]) / len(y[1])
+
 
     # ------------------------------------------------- #
     # ---------------- Modified Attack ---------------- #
     # ------------------------------------------------- #
-    # print(**kwargs)
-    modified_attack = attack_name(hybrid_classifier, **kwargs)
+    modified_attack = attack_name(hybrid_classifier, **kwargs_modf)
     if conditionals["is_class_constrained"]:
         start = time.time()
-        z_adv = modified_attack.generate(x=z[1], mask=generate_mask(
+        z_adv = modified_attack.generate(x=z[1], y=y[1], mask=generate_mask(
             latent_dim=int(config["latent_shape"]),
             n_classes=config["miscs"]["nb_classes"],
             labels=y[1]))
         modf_time = time.time() - start
     else:
         start = time.time()
-        z_adv = modified_attack.generate(x=z[1])
+        z_adv = modified_attack.generate(x=z[1], y=y[1])
         modf_time = time.time() - start
 
     # calculate noise
@@ -176,7 +191,8 @@ def execute_attack(config, attack_name, x, y, z, classifier,
     # send combined noise
     result[name]["delta_x_hat"] = delta_x_hat.cpu().detach().numpy()
 
-    result[name]["orig_time"] = orig_time
+    if conditionals["calculate_original"]:
+        result[name]["orig_time"] = orig_time
     result[name]["modf_time"] = modf_time
 
     return result

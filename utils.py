@@ -9,6 +9,9 @@ import numpy as np
 import torch
 import torchvision
 
+from tqdm import tqdm
+
+
 def set_logger(args):
     dataset_name = args.model_name.split("_")[0]
     log_folder = f"logs/{dataset_name}"
@@ -17,9 +20,9 @@ def set_logger(args):
 
     current_time = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     log_filename = f"{log_folder}/{args.attack_name}.log"
-    logging.basicConfig(filename=log_filename, filemode='w', format='%(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(filename=log_filename, filemode='a', format='%(name)s - %(levelname)s - %(message)s')
     logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     logger.info(f"----------------------------- {current_time} -----------------------------")
     logger.info('Initialised logger!!!!')
 

@@ -1,13 +1,11 @@
 model: CelebA
-
-paths:
-  root: /home/sweta/scratch/datasets/CelebA/
+dataset_path: /scratch/itee/uqsswain/datasets/CelebA/
 
 classifiers:
-  celeba_cnn_1: ./lightning_logs/celeba_classifier/checkpoints/epoch=4-step=11720.ckpt
+  celeba_cnn_1: /scratch/itee/uqsswain/artifacts/spaa/classifiers/celeba/lightning_logs/version_546423/checkpoints/epoch=9-step=11720.ckpt
 
 autoencoders:
-  cnn_128: ./lightning_logs/celeba_ae_mse/checkpoints/epoch=49-step=31700.ckpt
+  cnn_128: /scratch/itee/uqsswain/artifacts/spaa/autoencoders/celeba/lightning_logs/version_546284/checkpoints/epoch=19-step=23440.ckpt
 
 miscs:
   nb_classes: 2
@@ -19,3 +17,35 @@ miscs:
   input_shape:
     - 128
     - 128
+
+attack_kwargs:
+  fgsm_orig:
+    norm: inf
+    eps: 0.5
+  fgsm_modf:
+    norm: inf
+    eps: 0.2
+  pgd_orig:
+    norm: inf
+    eps: 0.1
+  pgd_modf:
+    norm: inf
+    eps: 0.01
+  bim_orig:
+    norm: inf
+    eps: 0.1
+  bim_modf:
+    norm: inf
+    eps: 0.01
+  cnw_orig: {}
+  cnw_modf: {}
+  deepfool_orig:
+    epsilon: 0.001
+    nb_grads: 10
+  deepfool_modf:
+    epsilon: 0.001
+    nb_grads: 10
+  elastic_orig:
+    targeted: false
+  elastic_modf:
+    targeted: false

@@ -18,3 +18,38 @@ miscs:
     - 3
     - 224
     - 224
+
+attack_kwargs:
+  fgsm_orig:
+    norm: inf
+    eps: 0.2
+  fgsm_modf:
+    norm: inf
+    eps: 0.0001
+  pgd_orig:
+    norm: inf
+    eps: 0.1
+  pgd_modf:
+    norm: inf
+    eps: 0.0001
+  bim_orig:
+    norm: inf
+    eps: 0.1
+  bim_modf:
+    norm: inf
+    eps: 0.01
+  cnw_orig:
+  cnw_modf:
+  deepfool_orig:
+    # epsilon: 0.001
+    # nb_grads: 5
+    steps: 50
+  deepfool_modf:
+    # epsilon: 0.001
+    # nb_grads: 5
+    steps: 50
+    overshoot: 0.0002
+  elastic_orig:
+    targeted: false
+  elastic_modf:
+    targeted: false
