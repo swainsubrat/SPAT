@@ -17,7 +17,7 @@ miscs:
     - 32
     - 32
 
-attack_kwargs:
+art_attack_kwargs:
   fgsm_orig:
     norm: inf
     eps: 0.5
@@ -26,16 +26,14 @@ attack_kwargs:
     eps: 0.2
   pgd_orig:
     norm: inf
-    eps: 0.1
+    eps: 0.5
   pgd_modf:
     norm: inf
-    eps: 0.01
+    eps: 0.2
   bim_orig:
-    norm: inf
-    eps: 0.1
+    eps: 0.5
   bim_modf:
-    norm: inf
-    eps: 0.01
+    eps: 0.2
   cnw_orig: {}
   cnw_modf: {}
   deepfool_orig:

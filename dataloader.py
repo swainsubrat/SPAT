@@ -29,9 +29,9 @@ def load_mnist(batch_size: int=64, root: str=None):
     train_data, valid_data = random_split(train, [55000, 5000])
     test_data  = datasets.MNIST(root=root, train=False, download=True, transform=t)
 
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True, num_workers=4)
-    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, drop_last=True, num_workers=4)
-    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, num_workers=4)
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, pin_memory=True, shuffle=True, num_workers=4)
+    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, pin_memory=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, pin_memory=True, num_workers=4)
 
     return train_dataloader, valid_dataloader, test_dataloader
 
@@ -50,7 +50,7 @@ def load_mnist_x(batch_size: int=64, root: str=None, dataset_len=1000):
     train = datasets.MNIST(root=root, train=True, download=True, transform=t)
     train_data, _ = random_split(train, [dataset_len, len(train)-dataset_len])
 
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=False, pin_memory=True, num_workers=4)
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, pin_memory=True, num_workers=4)
 
     return train_dataloader
 
@@ -59,23 +59,18 @@ def load_cifar(batch_size: int=64, root: str=None):
     Load CIFAR-10 data
     """
     root = root + "datasets/CIFAR10/"
-    transform_train = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
-        ])
-
-    transform_test = transforms.Compose([
+    transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
         ])
     
-    train = datasets.CIFAR10(root=root, train=True, download=True, transform=transform_train)
+    train = datasets.CIFAR10(root=root, train=True, download=True, transform=transform)
     train_data, valid_data = random_split(train, [45000, 5000])
-    test_data  = datasets.CIFAR10(root=root, train=False, download=True, transform=transform_test)
+    test_data  = datasets.CIFAR10(root=root, train=False, download=True, transform=transform)
 
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=True, shuffle=True, pin_memory=True, num_workers=4)
-    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, drop_last=True, num_workers=4)
-    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=True, num_workers=4)
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, pin_memory=True, shuffle=True, num_workers=4)
+    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, pin_memory=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, pin_memory=True, num_workers=4)
 
     return train_dataloader, valid_dataloader, test_dataloader
 
@@ -93,7 +88,52 @@ def load_cifar_x(batch_size: int=64, root: str=None, dataset_len=1000):
     train = datasets.CIFAR10(root=root, train=True, download=True, transform=transform)
     train_data, _ = random_split(train, [dataset_len, len(train)-dataset_len])
 
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=False, pin_memory=True, num_workers=4)
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, pin_memory=True, num_workers=4)
+
+    return train_dataloader
+
+def load_cifar100(batch_size: int=64, root: str=None):
+    """
+    Load CIFAR-100 data
+    """
+    root = root + "datasets/CIFAR100/"
+    train_transform = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.RandomCrop(32, padding=4,padding_mode='reflect'),
+        transforms.RandomRotation(15),
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ])
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ])
+    
+    train = datasets.CIFAR100(root=root, train=True, download=True, transform=transform)
+    train_data, valid_data = random_split(train, [45000, 5000])
+    test_data  = datasets.CIFAR100(root=root, train=False, download=True, transform=transform)
+
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, pin_memory=True, shuffle=True, num_workers=4)
+    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, pin_memory=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, pin_memory=True, num_workers=4)
+
+    return train_dataloader, valid_dataloader, test_dataloader
+
+def load_cifar100_x(batch_size: int=64, root: str=None, dataset_len=1000):
+    """
+    Load CIFAR-100 data of x length
+    """
+    torch.manual_seed(43)
+    root = root + "datasets/CIFAR100/"
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+        ])
+    
+    train = datasets.CIFAR10(root=root, train=True, download=True, transform=transform)
+    train_data, _ = random_split(train, [dataset_len, len(train)-dataset_len])
+
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, pin_memory=True, num_workers=4)
 
     return train_dataloader
 
@@ -124,13 +164,9 @@ def load_celeba(batch_size: int=64, root: str=None):
                                     img_dir=root+'img_align_celeba/',
                                     transform=transform_test)
 
-    # train_data = datasets.CelebA(root=root, split="train", transform=transform_train, download=True)
-    # valid_data = datasets.CelebA(root=root, split="valid", transform=transform_train, download=True)
-    # test_data = datasets.CelebA(root=root, split="test", transform=transform_train, download=True)
-
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=2)
-    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, shuffle=True, num_workers=2)
-    test_dataloader  = DataLoader(test_data, batch_size=batch_size, num_workers=2)
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=4)
+    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, pin_memory=True, num_workers=4)
 
     return train_dataloader, valid_dataloader, test_dataloader
 
@@ -152,7 +188,7 @@ def load_celeba_x(batch_size: int=64, root: str=None, dataset_len=1000):
                                         transform=transform_train)
     train_data, _ = random_split(train, [dataset_len, len(train)-dataset_len])
 
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=4)
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, pin_memory=True, num_workers=4)
 
     return train_dataloader
 
@@ -172,9 +208,9 @@ def load_gtsrb(batch_size: int=64, root: str=None):
     train_data, valid_data = random_split(train, [len(train)-5000, 5000])
     test_data  = datasets.GTSRB(root=root, split="test", download=True, transform=transform)
 
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, drop_last=False, shuffle=True, pin_memory=True, num_workers=4)
-    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, drop_last=False, num_workers=4)
-    test_dataloader  = DataLoader(test_data, batch_size=batch_size, drop_last=False, num_workers=4)
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=4)
+    valid_dataloader = DataLoader(valid_data, batch_size=batch_size, pin_memory=True, num_workers=4)
+    test_dataloader  = DataLoader(test_data, batch_size=batch_size, pin_memory=True, num_workers=4)
 
     return train_dataloader, valid_dataloader, test_dataloader
 
@@ -194,7 +230,7 @@ def load_gtsrb_x(batch_size: int=64, root: str=None, dataset_len=1000):
     train = datasets.GTSRB(root=root, split="train", download=True, transform=transform)
     train_data, _ = random_split(train, [dataset_len, len(train)-dataset_len])
 
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=4)
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, pin_memory=True, num_workers=4)
 
     return train_dataloader
 
@@ -221,7 +257,7 @@ def load_imagenet_x(batch_size: int=32, root: str=None, dataset_len=1000):
     )
 
     train_data, _ = random_split(train, [dataset_len, len(train)-dataset_len])
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, num_workers=2)
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, num_workers=4)
 
     return train_dataloader
 
@@ -250,18 +286,18 @@ DATALOADER_MAPPINGS = {
     "mnist_x": load_mnist_x,
     "cifar10": load_cifar,
     "cifar10_x": load_cifar_x,
+    "cifar100": load_cifar100,
+    "cifar100_x": load_cifar100_x,
     "celeba": load_celeba,
     "celeba_x": load_celeba_x,
     "fmnist": load_fashion_mnist,
     "gtsrb": load_gtsrb,
     "gtsrb_x": load_gtsrb_x,
-    # "cifar101000": load_cifar_x,
-    # "mnist1000": load_mnist_x,
-    "imagenet_x": load_imagenet_x
+    "imagenet_x": load_imagenet_x,
 }
 
 if __name__ == "__main__":
-    train_dataloader, _, _ = load_gtsrb(batch_size=1, root="/scratch/itee/uqsswain/")
+    train_dataloader, _, _ = load_cifar100(batch_size=1, root="/scratch/itee/uqsswain/")
     for imgs, labels in train_dataloader:
         print(imgs.shape)
         print(labels)

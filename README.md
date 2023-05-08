@@ -19,6 +19,7 @@ project_artifact\
 ```
 
 ## Adding a dataset:
+- Create a datoloader and put it in the dataloader mapping dict in the file ```dataloader.py```
 - Create a classifier in the file ```models/classifier.py```
 - Create an autoencoder in the file ```models/autoencoder.py```
 - Create a config file in the folder ```configs/``` as ```dataset_name.yml```

@@ -1,0 +1,23 @@
+CnW
+{'c': 1, 'kappa': 0, 'lr': 0.005, 'steps': 1000} {'c': 1, 'kappa': 0, 'lr': 0.005, 'steps': 1000}
+
+Robust accuracy of original adversarial attack: 65.60000000000001%
+Robust accuracy of modified adversarial attack: 0%
+Robust accuracy of reconstructed adversarial attack: 0.0%
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /scratch/itee/uqsswain/miniconda3/envs/py38/lib/python3.8/site-packages/lpips/weights/v0.1/alex.pth
+Average LPIPS score of original adversarial attack:  tensor(1.5813e-07, device='cuda:0', grad_fn=<MeanBackward0>)
+Average LPIPS score of modifed adversarial attack:  tensor(0.2268, device='cuda:0', grad_fn=<MeanBackward0>)
+Average Linf distance between original and original adversarial images:  tensor(0.0015, device='cuda:0')
+Average Linf distance between original and modified adversarial images:  tensor(0.7865, device='cuda:0')
+
+DeepFool
+{'steps': 2} {'steps': 50, 'overshoot': 2e-05}
+
+Robust accuracy of original adversarial attack: 35.9375%
+Robust accuracy of modified adversarial attack: 0%
+Robust accuracy of reconstructed adversarial attack: 14.0625%
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /scratch/itee/uqsswain/miniconda3/envs/py38/lib/python3.8/site-packages/lpips/weights/v0.1/alex.pth
+Average LPIPS score of original adversarial attack:  tensor(0.0003, device='cuda:3', grad_fn=<MeanBackward0>)
+Average LPIPS score of modifed adversarial attack:  tensor(0.2005, device='cuda:3', grad_fn=<MeanBackward0>)

@@ -2,6 +2,9 @@
 file containing all the necessary function
 to plot bar and line charts
 """
+import torch
+import torchvision
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -80,10 +83,19 @@ def plot_robust_accuracy(attacks, robust_acc, semantic_robust_acc, save_path=Non
 
     plt.grid(False)
     if save_path:
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.savefig(save_path, dpi=600, bbox_inches='tight')
     else:
         plt.show()
 
+def plot_block(images, path):
+    plt.figure(figsize=(20, 6))
+    images = torch.Tensor(images).reshape(-1, 3, 32, 32)
+    grid = torchvision.utils.make_grid(images, nrow=10, normalize=True, range=(-1,1))
+    grid = grid.permute(1, 2, 0)
+    plt.imshow(grid)
+    plt.axis('off')
+    plt.savefig(path, dpi=600, bbox_inches='tight')
+    plt.show()
 
 if __name__ == "__main__":
     # attacks = ['FGSM', 'PGD', 'DeepFool', 'C&W', 'EAD']

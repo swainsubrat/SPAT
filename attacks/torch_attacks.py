@@ -44,9 +44,8 @@ def execute_torchattack(args, config,
     orig_pred_labels = []
     spat_pred_labels = []
     for batch_idx, (data, target) in enumerate(tqdm(train_dataloader)):
-        if not batch_idx:
-            print("Performing attack for the first batch")
-            start = time.time()
+
+        start = time.time()
 
         # store before moving to device
         xs.append(data)
@@ -66,14 +65,13 @@ def execute_torchattack(args, config,
         x_hat_adv = autoencoder.get_x_hat(z_adv)
         spat_pred_label = torch.argmax(classifier(x_hat_adv), dim=1).detach().cpu()
 
-        if not batch_idx:
-            print(f"Time taken: {time.time() - start} seconds")
+        print(f"Time taken for batch {batch_idx + 1}: {time.time() - start} seconds")
 
         # collect all
-        orig_adv_images.append(x_adv)
-        spat_adv_images.append(x_hat_adv)
-        orig_pred_labels.append(orig_pred_label)
-        spat_pred_labels.append(spat_pred_label)
+        orig_adv_images.append(x_adv.detach().cpu())
+        spat_adv_images.append(x_hat_adv.detach().cpu())
+        orig_pred_labels.append(orig_pred_label.detach().cpu())
+        spat_pred_labels.append(spat_pred_label.detach().cpu())
     
     # Concatenate all batches into a single tensor
     x               = torch.cat(xs, dim=0)
@@ -102,32 +100,3 @@ def execute_torchattack(args, config,
     result[attack_name.__name__]["delta_x_hat"] = None
 
     return result, true_labels
- 
-# def deepfool_attack(model, dataloader, device='cuda', batch_size=128):
-#     model = model.to(device)
-#     model.eval()
-#     atk = torchattacks.DeepFool(model, steps=3)
-
-#     adv_images = []
-#     true_labels = []
-#     pred_labels = []
-
-#     for batch_idx, (data, target) in tqdm(enumerate(dataloader)):
-#         data, target = data.to(device), target.to(device)
-#         adv = atk(data, target)
-        
-#         # Collect adversarial images and corresponding labels and predictions
-#         adv_images.append(adv.detach().cpu())
-#         true_labels.append(target.detach().cpu())
-#         pred_labels.append(torch.argmax(model(adv), dim=1).detach().cpu())
-
-#     # Concatenate all batches into a single tensor
-#     adv_images = torch.cat(adv_images, dim=0)
-#     true_labels = torch.cat(true_labels, dim=0)
-#     pred_labels = torch.cat(pred_labels, dim=0)
-
-#     # Evaluate accuracy and print results
-#     accuracy = torch.sum(true_labels == pred_labels).item() / len(true_labels)
-#     print("Accuracy of the model on the adversarial examples: {:.2f}%".format(accuracy*100))
-
-#     return adv_images

@@ -998,37 +998,37 @@ if __name__ == "__main__":
     """
     Testing GTSRB Autoencoder
     """
-    train_dataloader, valid_dataloader, test_dataloader = load_gtsrb(batch_size=1024, root="/scratch/itee/uqsswain/")
+    # train_dataloader, valid_dataloader, test_dataloader = load_gtsrb(batch_size=1024, root="/scratch/itee/uqsswain/")
     
-    model = GTSRBAutoencoder(lr=1e-3)
-    trainer = pl.Trainer(
-        max_epochs=50,
-        accelerator="gpu",
-        devices=1,
-        default_root_dir="/scratch/itee/uqsswain/artifacts/spaa/autoencoders/gtsrb/"
-    )
-    trainer.fit(model, train_dataloader, valid_dataloader)
-    # model = CelebAAutoencoderNew.load_from_checkpoint(
-    #     "/scratch/itee/uqsswain/artifacts/spaa/autoencoders/celeba/lightning_logs/version_546284/checkpoints/epoch=19-step=11720.ckpt"
+    # model = GTSRBAutoencoder(lr=1e-3)
+    # trainer = pl.Trainer(
+    #     max_epochs=50,
+    #     accelerator="gpu",
+    #     devices=1,
+    #     default_root_dir="/scratch/itee/uqsswain/artifacts/spaa/autoencoders/gtsrb/"
     # )
-    train_dataloader, valid_dataloader, test_dataloader = load_gtsrb(batch_size=1, root="/scratch/itee/uqsswain/")
-    input_imgs, _ = next(iter(test_dataloader))
-    print(torch.min(input_imgs), torch.max(input_imgs))
-    model.eval()
-    reconst_imgs, z = model(input_imgs)
-    print(torch.min(reconst_imgs), torch.max(reconst_imgs))
-    print(z.shape)
-    print(torch.min(z), torch.max(z))
+    # trainer.fit(model, train_dataloader, valid_dataloader)
+    # # model = CelebAAutoencoderNew.load_from_checkpoint(
+    # #     "/scratch/itee/uqsswain/artifacts/spaa/autoencoders/celeba/lightning_logs/version_546284/checkpoints/epoch=19-step=11720.ckpt"
+    # # )
+    # train_dataloader, valid_dataloader, test_dataloader = load_gtsrb(batch_size=1, root="/scratch/itee/uqsswain/")
+    # input_imgs, _ = next(iter(test_dataloader))
+    # print(torch.min(input_imgs), torch.max(input_imgs))
+    # model.eval()
+    # reconst_imgs, z = model(input_imgs)
+    # print(torch.min(reconst_imgs), torch.max(reconst_imgs))
+    # print(z.shape)
+    # print(torch.min(z), torch.max(z))
 
-    input_imgs   = input_imgs.reshape(3, 32, 32).detach()
-    reconst_imgs = reconst_imgs.reshape(3, 32, 32).detach()
-    fig, axis = plt.subplots(1,2)
+    # input_imgs   = input_imgs.reshape(3, 32, 32).detach()
+    # reconst_imgs = reconst_imgs.reshape(3, 32, 32).detach()
+    # fig, axis = plt.subplots(1,2)
 
-    axis[0].imshow(np.transpose(input_imgs, (1, 2, 0)))
-    axis[1].imshow(np.transpose(reconst_imgs, (1, 2, 0)))
+    # axis[0].imshow(np.transpose(input_imgs, (1, 2, 0)))
+    # axis[1].imshow(np.transpose(reconst_imgs, (1, 2, 0)))
     
-    plt.savefig(f"../plots/gtsrb/gtsrb_recon_tanh.png", dpi=1000)
-    plt.show()
+    # plt.savefig(f"../plots/gtsrb/gtsrb_recon_tanh.png", dpi=1000)
+    # plt.show()
     """
     Testing CelebA Autoencoder
     """
@@ -1142,28 +1142,28 @@ if __name__ == "__main__":
     """
     Testing CIFAR10 Lightning
     """
-    # model = CIFAR10LightningAutoencoder()
+    model = CIFAR10LightningAutoencoder()
     # model = model.from_pretrained('cifar10-resnet18')
 
-    # train_dataloader, valid_dataloader, test_dataloader = load_cifar(
-    #     root="~/scratch/datasets/CIFAR10/", batch_size=128
-    # )
+    train_dataloader, valid_dataloader, test_dataloader = load_cifar(
+        root="/scratch/itee/uqsswain/", batch_size=256
+    )
 
-    # trainer = pl.Trainer(max_epochs=200, accelerator="gpu", default_root_dir="..")
-    # trainer.fit(model, train_dataloader, valid_dataloader)
+    trainer = pl.Trainer(max_epochs=50, accelerator="gpu", devices=1, default_root_dir="..")
+    trainer.fit(model, train_dataloader, valid_dataloader)
 
     # Testing
     # trainer = pl.Trainer()
     # model = CIFAR10LightningAutoencoder.load_from_checkpoint("../lightning_logs/version_40/checkpoints/epoch=199-step=70200.ckpt")
-    # model.eval()
+    model.eval()
 
-    # train_dataloader, valid_dataloader, test_dataloader = load_cifar(
-    #     root="/home/sweta/scratch/datasets/CIFAR10/", batch_size=10
-    # )
-    # input_imgs, _ = next(iter(test_dataloader))
-    # reconst_imgs, _ = model(input_imgs)
+    train_dataloader, valid_dataloader, test_dataloader = load_cifar(
+        root="/scratch/itee/uqsswain/", batch_size=10
+    )
+    input_imgs, _ = next(iter(test_dataloader))
+    reconst_imgs, _ = model(input_imgs)
 
-    # visualize_cifar_reconstructions(input_imgs[-1].reshape(-1, 3, 32, 32), reconst_imgs[-1].reshape(-1, 3, 32, 32), file_name="cifar10_ae_mse_with_cls_loss")
+    visualize_cifar_reconstructions(input_imgs[-1].reshape(-1, 3, 32, 32), reconst_imgs[-1].reshape(-1, 3, 32, 32), file_name="cifar10_ae_mse_with_cls_loss")
 
     """
     Testing MNIST autoencoder

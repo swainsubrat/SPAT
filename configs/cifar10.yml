@@ -5,7 +5,7 @@ classifiers:
   cifar10_cnn_1: ./lightning_logs/cifar10_classifier/checkpoints/epoch=49-step=35150.ckpt
 autoencoders:
   ann_128: ./lightning_logs/cifar10_ae_mse/checkpoints/epoch=199-step=35000.ckpt
-  cnn_256: ./lightning_logs/cifar10_ae_nll/checkpoints/epoch=199-step=70200.ckpt
+  cnn_256: ./lightning_logs/version_547927/checkpoints/epoch=49-step=8800.ckpt
   cnn_256_noisy: ./lightning_logs/version_39/checkpoints/epoch=199-step=70200.ckpt
 
 miscs:
@@ -18,3 +18,45 @@ miscs:
   input_shape:
     - 32
     - 32
+
+art_attack_kwargs:
+  fgsm_orig:
+    norm: inf
+    eps: 0.5
+  fgsm_modf:
+    norm: inf
+    eps: 0.001
+  pgd_orig:
+    norm: inf
+    eps: 0.8
+  pgd_modf:
+    norm: inf
+    eps: 0.1
+  bim_orig:
+    norm: inf
+    eps: 0.1
+  bim_modf:
+    norm: inf
+    eps: 0.01
+  cnw_orig: {}
+  cnw_modf: {}
+  deepfool_orig:
+    epsilon: 0.001
+    nb_grads: 10
+  deepfool_modf:
+    epsilon: 0.001
+    nb_grads: 10
+  elastic_orig:
+    targeted: false
+  elastic_modf:
+    targeted: false
+
+torch_attack_kwargs:
+  cnw_orig: {}
+  cnw_modf: {}
+  deepfool_orig:
+    steps: 10
+    overshoot: 0.02
+  deepfool_modf:
+    steps: 10
+    overshoot: 0.0002

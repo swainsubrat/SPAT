@@ -19,7 +19,37 @@ miscs:
     - 224
     - 224
 
-attack_kwargs:
+art_attack_kwargs:
+  fgsm_orig:
+    norm: inf
+    eps: 0.5
+  fgsm_modf:
+    norm: inf
+    eps: 0.2
+  pgd_orig:
+    norm: inf
+    eps: 0.5
+  pgd_modf:
+    norm: inf
+    eps: 0.2
+  bim_orig:
+    eps: 0.5
+  bim_modf:
+    eps: 0.2
+  cnw_orig: {}
+  cnw_modf: {}
+  deepfool_orig:
+    epsilon: 0.001
+    nb_grads: 10
+  deepfool_modf:
+    epsilon: 0.001
+    nb_grads: 10
+  elastic_orig:
+    targeted: false
+  elastic_modf:
+    targeted: false
+
+torch_attack_kwargs:
   fgsm_orig:
     norm: inf
     eps: 0.2
@@ -39,15 +69,19 @@ attack_kwargs:
     norm: inf
     eps: 0.01
   cnw_orig:
+    c: 0.01
+    kappa: 0
+    lr: 0.01
+    steps: 1000
   cnw_modf:
+    c: 1
+    kappa: 0
+    lr: 0.005
+    steps: 1000
   deepfool_orig:
-    # epsilon: 0.001
-    # nb_grads: 5
-    steps: 50
+    steps: 5
   deepfool_modf:
-    # epsilon: 0.001
-    # nb_grads: 5
-    steps: 50
+    steps: 5
     overshoot: 0.0002
   elastic_orig:
     targeted: false

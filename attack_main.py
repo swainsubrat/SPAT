@@ -18,6 +18,7 @@ from attacks.evaluate_attack import calculate_lpips
 from dataloader import DATALOADER_MAPPINGS
 from utils import set_logger, save, load
 from attacks.torch_attacks import execute_torchattack
+from attacks.plot_attack import plot_block
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -47,7 +48,7 @@ def run_attack(train_dataloader, autoencoder_model, args, config, attack_name, d
         if dataset_name == "celaba":
             config["latent_shape"] = (128, 16, 16)
         else:
-            config["latent_shape"] = (args.ae_name.split('_')[-1], )
+            config["latent_shape"] = args.ae_name.split('_')[-1]
         classifier, hybrid_classifier, ca, ra = hybridize(x, y, z, 
                                                             config, classifier_model, autoencoder_model)
         xs.append(images)
@@ -153,11 +154,11 @@ def main(args):
         )
         logger.info(f"Loaded dataloader!!!!!")
 
-        kwargs = config["attack_kwargs"]
-        kwargs_orig = kwargs[f"{args.attack_name}_orig"]
-        kwargs_modf = kwargs[f"{args.attack_name}_modf"]
-        print(kwargs_orig, kwargs_modf)
         if args.torch_attacks:
+            kwargs = config["torch_attack_kwargs"]
+            kwargs_orig = kwargs[f"{args.attack_name}_orig"]
+            kwargs_modf = kwargs[f"{args.attack_name}_modf"]
+            print(kwargs_orig, kwargs_modf)
             # Run Attack torchattacks
             result, ys = execute_torchattack(args, config,
                                              train_dataloader,
@@ -166,7 +167,11 @@ def main(args):
                                              attack_name, dataset_name,
                                              kwargs_orig, kwargs_modf)
         else:
+            kwargs = config["art_attack_kwargs"]
+            kwargs_orig = kwargs[f"{args.attack_name}_orig"]
+            kwargs_modf = kwargs[f"{args.attack_name}_modf"]
             kwargs_orig["batch_size"], kwargs_modf["batch_size"] = args.batch_size, args.batch_size
+            print(kwargs_orig, kwargs_modf)
             # Run Attack ART
             result, ys = run_attack(train_dataloader,
                                     autoencoder_model,
@@ -185,7 +190,7 @@ def main(args):
     print("Robust accuracy of modified adversarial attack: {}%".format(result[attack_name.__name__]["modf_x_adv_acc"] * 100))
     print("Robust accuracy of reconstructed adversarial attack: {}%".format(result[attack_name.__name__]["x_hat_adv_acc"] * 100))
 
-    # LPIPS
+    # # LPIPS
     x = result[attack_name.__name__]["x"]
     orig_lpips, modf_lpips, orig_linf, modf_linf = calculate_lpips(args, result, attack_name, x)
     print("Average LPIPS score of original adversarial attack: ", orig_lpips.flatten().mean())
@@ -194,6 +199,25 @@ def main(args):
     # Linf
     print("Average Linf distance between original and original adversarial images: ", orig_linf.mean())
     print("Average Linf distance between original and modified adversarial images: ", modf_linf.mean())
+
+    if args.plot:
+        # Plot
+        if not args.skip_orig:
+            x_adv = result[attack_name.__name__]["x_adv"]
+            delta_x = result[attack_name.__name__]["delta_x"]
+        
+        x_hat_adv  = result[attack_name.__name__]["x_hat_adv"]
+        modf_x_adv = result[attack_name.__name__]["modf_x_adv"]
+
+        # noises
+        delta_x_hat = result[attack_name.__name__]["delta_x_hat"]
+
+        start = 22
+        end = 32
+        images1 = np.vstack([x[start: end], x_adv[start: end], delta_x[start: end]])
+        images2 = np.vstack([modf_x_adv[start: end], delta_x_hat[start: end]])
+        plot_block(images1, "./plots/cifar_df_block1.png")
+        plot_block(images2, "./plots/cifar_df_block2.png")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('Attack and evaluation script', parents=[get_args_parser()])

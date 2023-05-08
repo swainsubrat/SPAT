@@ -78,7 +78,7 @@ def get_models(args):
         autoencoder_model = autoencoder_model_class.load_from_checkpoint(autoencoder_path).to(args.device)
 
     classifier_model.eval()
-    # autoencoder_model.eval()
+    autoencoder_model.eval()
 
     return classifier_model, autoencoder_model, config
 
@@ -110,7 +110,7 @@ def hybridize(x, y, z, config, classifier_model, autoencoder_model):
         # clip_values=(min_pixel_value, max_pixel_value),
         loss=criterion,
         # optimizer=optimizer,
-        input_shape=(1,) + config["latent_shape"],
+        input_shape=(1,) + (config["latent_shape"], ),
         nb_classes=miscs["nb_classes"],
     )
 

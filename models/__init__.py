@@ -21,7 +21,7 @@ MODEL_MAPPINGS = {
     # "./lightning_logs/celeba_ae_mse/checkpoints/epoch=49-step=31700.ckpt": CelebAAutoencoder,
     "./lightning_logs/mnist_ccae_mse/checkpoints/checkpoint.ckpt": ClassConstrainedANNAutoencoder,
     "./lightning_logs/version_39/checkpoints/epoch=499-step=175500.ckpt": CIFAR10VAE,
-    "./lightning_logs/cifar10_ae_nll/checkpoints/epoch=199-step=70200.ckpt": CIFAR10LightningAutoencoder,
+    "./lightning_logs/version_547927/checkpoints/epoch=49-step=8800.ckpt": CIFAR10LightningAutoencoder,
     "./lightning_logs/mnist_cnn_classifier/checkpoints/epoch=49-step=42950.ckpt": MNISTCNNClassifier,
     "./lightning_logs/mnist_cnn_ae/checkpoints/epoch=19-step=8580.ckpt": MNISTCNNAutoencoder,
     "./lightning_logs/version_39/checkpoints/epoch=199-step=70200.ckpt": CIFAR10NoisyLightningAutoencoder,

@@ -1,0 +1,35 @@
+FGSM:
+Robust accuracy of original adversarial attack: 30.898437499999996%
+Robust accuracy of modified adversarial attack: 67.265625%
+Robust accuracy of reconstructed adversarial attack: 29.6875%
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /scratch/itee/uqsswain/miniconda3/envs/py38/lib/python3.8/site-packages/lpips/weights/v0.1/alex.pth
+Average LPIPS score of original adversarial attack:  tensor(0.0838, grad_fn=<MeanBackward0>)
+Average LPIPS score of modifed adversarial attack:  tensor(0.0690, grad_fn=<MeanBackward0>)
+
+PGD
+Robust accuracy of original adversarial attack: 17.08984375%
+Robust accuracy of modified adversarial attack: 32.7734375%
+Robust accuracy of reconstructed adversarial attack: 2.40234375%
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /scratch/itee/uqsswain/miniconda3/envs/py38/lib/python3.8/site-packages/lpips/weights/v0.1/alex.pth
+Average LPIPS score of original adversarial attack:  tensor(0.0824, device='cuda:0', grad_fn=<MeanBackward0>)
+Average LPIPS score of modifed adversarial attack:  tensor(0.0737, device='cuda:0', grad_fn=<MeanBackward0>)
+
+CnW
+Robust accuracy of original adversarial attack: 19.47265625%
+Robust accuracy of modified adversarial attack: 91.15234375%
+Robust accuracy of reconstructed adversarial attack: 5.95703125%
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /scratch/itee/uqsswain/miniconda3/envs/py38/lib/python3.8/site-packages/lpips/weights/v0.1/alex.pth
+Average LPIPS score of original adversarial attack:  tensor(0.1270, device='cuda:0', grad_fn=<MeanBackward0>)
+Average LPIPS score of modifed adversarial attack:  tensor(0.0684, device='cuda:0', grad_fn=<MeanBackward0>)
+
+EAD
+Robust accuracy of original adversarial attack: 10.4296875%
+Robust accuracy of modified adversarial attack: 68.6328125%
+Robust accuracy of reconstructed adversarial attack: 0.0%
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /scratch/itee/uqsswain/miniconda3/envs/py38/lib/python3.8/site-packages/lpips/weights/v0.1/alex.pth
+Average LPIPS score of original adversarial attack:  tensor(0.2658, device='cuda:0', grad_fn=<MeanBackward0>)
+Average LPIPS score of modifed adversarial attack:  tensor(0.0934, device='cuda:0', grad_fn=<MeanBackward0>)

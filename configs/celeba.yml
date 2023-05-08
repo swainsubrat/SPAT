@@ -49,3 +49,33 @@ attack_kwargs:
     targeted: false
   elastic_modf:
     targeted: false
+
+art_attack_kwargs:
+  fgsm_orig:
+    norm: inf
+    eps: 0.5
+  fgsm_modf:
+    norm: inf
+    eps: 0.2
+  pgd_orig:
+    norm: inf
+    eps: 0.5
+  pgd_modf:
+    norm: inf
+    eps: 0.2
+  bim_orig:
+    eps: 0.5
+  bim_modf:
+    eps: 0.2
+  cnw_orig: {}
+  cnw_modf: {}
+  deepfool_orig:
+    epsilon: 0.001
+    nb_grads: 10
+  deepfool_modf:
+    epsilon: 0.001
+    nb_grads: 10
+  elastic_orig:
+    targeted: false
+  elastic_modf:
+    targeted: false
